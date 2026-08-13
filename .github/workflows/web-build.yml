@@ -1,0 +1,68 @@
+name: WebAssembly build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-web:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout port repository
+        uses: actions/checkout@v6
+
+      - name: Checkout Project Starfighter upstream
+        uses: actions/checkout@v6
+        with:
+          repository: pr-starfighter/starfighter
+          ref: 315d0456723e19a153dbc5ef37d5cfb27b4cb36c
+          path: upstream
+
+      - name: Install Emscripten
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y emscripten
+          emcc --version
+
+      - name: Build first browser target
+        run: |
+          mkdir -p dist
+          emcc upstream/src/*.c \
+            -Iupstream/src \
+            -DVERSION='"web-dev"' \
+            -DDATADIR='"/"' \
+            -DNOFONT \
+            -DNOSOUND \
+            -O2 \
+            -sUSE_SDL=2 \
+            -sUSE_SDL_IMAGE=2 \
+            -sSDL2_IMAGE_FORMATS='["png","jpg"]' \
+            -sASYNCIFY \
+            -sALLOW_MEMORY_GROWTH=1 \
+            -sFORCE_FILESYSTEM=1 \
+            -sEXIT_RUNTIME=0 \
+            --preload-file upstream/data@/data \
+            --preload-file upstream/gfx@/gfx \
+            --shell-file web/shell.html \
+            -o dist/index.html
+          cp upstream/COPYING upstream/LICENSES dist/
+          du -ah dist | sort -h | tail -n 20
+
+      - name: Package Yandex Games archive
+        run: |
+          cd dist
+          zip -9 -r ../starfighter-yandexgames.zip .
+          cd ..
+          ls -lh starfighter-yandexgames.zip
+
+      - name: Upload browser build
+        uses: actions/upload-artifact@v4
+        with:
+          name: starfighter-yandexgames
+          path: |
+            starfighter-yandexgames.zip
+            dist/
