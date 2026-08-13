@@ -1,0 +1,6 @@
+from pathlib import Path
+import shutil
+
+Path('dist').mkdir(parents=True, exist_ok=True)
+shutil.copyfile('upstream/data/ipa_font_license.txt', 'dist/IPA_FONT_LICENSE.txt')
+shutil.copyfile('upstream/data/credits.txt', 'dist/CREDITS.txt')
