@@ -20,55 +20,13 @@
   <script>
     const canvas=document.getElementById('canvas');
     const loading=document.getElementById('loading');
-    window.ysdk=null;
-    window.sfGameplayActive=false;
-
-    function sfPauseFromPlatform(){
-      if(window.Module&&typeof Module.ccall==='function'){
-        try{Module.ccall('sf_web_set_platform_paused',null,['number'],[1]);}catch(e){}
-      }
-    }
-
-    function sfResumeFromPlatform(){
-      if(window.Module&&typeof Module.ccall==='function'){
-        try{Module.ccall('sf_web_set_platform_paused',null,['number'],[0]);}catch(e){}
-      }
-    }
-
-    window.sfGameplayStart=function(){
-      if(window.ysdk&&ysdk.features&&ysdk.features.GameplayAPI&&!window.sfGameplayActive){
-        ysdk.features.GameplayAPI.start();
-        window.sfGameplayActive=true;
-      }
-    };
-
-    window.sfGameplayStop=function(){
-      if(window.ysdk&&ysdk.features&&ysdk.features.GameplayAPI&&window.sfGameplayActive){
-        ysdk.features.GameplayAPI.stop();
-        window.sfGameplayActive=false;
-      }
-    };
-
-    if(window.YaGames){
-      YaGames.init().then(function(sdk){
-        window.ysdk=sdk;
-        if(sdk.events){
-          sdk.events.on('game_api_pause',sfPauseFromPlatform);
-          sdk.events.on('game_api_resume',sfResumeFromPlatform);
-        }
-      }).catch(function(){
-        window.ysdk=null;
-      });
-    }
 
     var Module={
       canvas:canvas,
       onRuntimeInitialized:function(){
         loading.classList.add('hidden');
         canvas.focus();
-        if(window.ysdk&&ysdk.features&&ysdk.features.LoadingAPI){
-          ysdk.features.LoadingAPI.ready();
-        }
+        document.documentElement.setAttribute('data-starfighter-shell-ready','1');
       }
     };
   </script>
