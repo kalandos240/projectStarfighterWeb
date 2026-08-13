@@ -1,0 +1,2 @@
+    {"I've had a look at the implants and they should be easy to remove. She'll just have a headache for a while.", "Я осмотрел импланты — удалить их будет несложно. Некоторое время у неё просто поболит голова."},
+    {"We'll have to wait for her memory to come back. She might not be able to remember anything she did while the implants were in.", "Нужно дождаться, пока вернётся память. Возможно, она не вспомнит ничего из того, что делала, пока импланты были установлены."},
