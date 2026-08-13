@@ -18,3 +18,19 @@ if new not in source:
         raise SystemExit('title menu marker not found')
     source = source.replace(old, new, 1)
 path.write_text(source)
+
+# The text field is a fixed array, so its address is always non-null. Keep only
+# the image check the original shortcut actually needs.
+gfx_path = Path('upstream/src/gfx.c')
+gfx_source = gfx_path.read_text()
+warning_old = '''\tif (gfx_textSprites[index].text && gfx_textSprites[index].image
+\t\t\t&& (gfx_textSprites[index].fontColor == fontColor)
+'''
+warning_new = '''\tif (gfx_textSprites[index].image
+\t\t\t&& (gfx_textSprites[index].fontColor == fontColor)
+'''
+if warning_new not in gfx_source:
+    if warning_old not in gfx_source:
+        raise SystemExit('text object shortcut marker not found')
+    gfx_source = gfx_source.replace(warning_old, warning_new, 1)
+gfx_path.write_text(gfx_source)
