@@ -22,3 +22,5 @@ if new not in source:
         raise SystemExit('unicode probe marker not found')
     source = source.replace(old, new, 1)
 path.write_text(source)
+
+exec(Path('scripts/patch_web_menu.py.txt').read_text(), {})
