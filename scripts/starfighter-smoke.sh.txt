@@ -16,6 +16,9 @@ if [ -z "$BROWSER" ]; then
 fi
 
 PROFILE_DIR="$(mktemp -d)"
+mkdir -p "$PROFILE_DIR/Default"
+printf '%s\n' '{"intl":{"accept_languages":"ru-RU,ru"}}' > "$PROFILE_DIR/Default/Preferences"
+
 "$BROWSER" \
   --headless=new \
   --no-sandbox \
