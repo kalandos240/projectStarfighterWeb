@@ -47,37 +47,39 @@ jobs:
           cp scripts/patch_menu_marker.py.txt /tmp/patch_menu_marker.py
           python3 /tmp/patch_menu_marker.py
 
-      - name: Build browser target
+      - name: Build standalone browser target
         run: |
           source emsdk/emsdk_env.sh
           mkdir -p dist
           emcc upstream/src/*.c \
             -Iupstream/src \
-            -DVERSION='"2.5-web1"' \
-            -DDATADIR='"/"' \
+            -DVERSION='\"2.5-web1\"' \
+            -DDATADIR='\"/\"' \
             -DNOFONT \
             -O2 \
             -sUSE_SDL=2 \
             -sUSE_SDL_IMAGE=2 \
-            -sSDL2_IMAGE_FORMATS='["png","jpg"]' \
+            -sSDL2_IMAGE_FORMATS='[\"png\",\"jpg\"]' \
             -sUSE_SDL_MIXER=2 \
-            -sSDL2_MIXER_FORMATS='["ogg"]' \
+            -sSDL2_MIXER_FORMATS='[\"ogg\"]' \
             -sASYNCIFY \
             -sALLOW_MEMORY_GROWTH=1 \
             -sFORCE_FILESYSTEM=1 \
             -sEXIT_RUNTIME=0 \
+            -sSINGLE_FILE=1 \
             -lidbfs.js \
             --pre-js web/platform-pre.js \
-            --preload-file upstream/data@/data \
-            --preload-file upstream/gfx@/gfx \
-            --preload-file upstream/sound@/sound \
-            --preload-file upstream/music@/music \
+            --embed-file upstream/data@/data \
+            --embed-file upstream/gfx@/gfx \
+            --embed-file upstream/sound@/sound \
+            --embed-file upstream/music@/music \
             --shell-file web/shell.html \
             -o dist/index.html
           cp upstream/COPYING upstream/LICENSES dist/
+          test -s dist/index.html
           du -ah dist | sort -h | tail -n 20
 
-      - name: Chromium runtime smoke test
+      - name: Direct file index.html smoke test
         run: |
           cp scripts/starfighter-smoke.sh.txt /tmp/starfighter-smoke.sh
           bash /tmp/starfighter-smoke.sh
