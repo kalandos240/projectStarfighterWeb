@@ -59,46 +59,76 @@ async function main() {
     });
   }
 
+  async function evaluate(expression) {
+    const result = await send('Runtime.evaluate', {
+      expression,
+      returnByValue: true
+    });
+    return result.result?.value;
+  }
+
+  async function waitFor(expression, label, timeoutMs = 30000) {
+    const stopAt = Date.now() + timeoutMs;
+    while (Date.now() < stopAt) {
+      try {
+        if (await evaluate(expression)) return;
+      } catch (_) {}
+      await sleep(200);
+    }
+    throw new Error('Timed out waiting for ' + label);
+  }
+
   await send('Runtime.enable');
   await send('Page.enable');
 
-  let markers = {};
-  while (Date.now() < deadline) {
-    const result = await send('Runtime.evaluate', {
-      expression: `(() => {
-        const e = document.documentElement;
-        return {
-          prerun: e.getAttribute('data-starfighter-prerun'),
-          idbfsReady: e.getAttribute('data-starfighter-idbfs-ready'),
-          idbfsTimeout: e.getAttribute('data-starfighter-idbfs-timeout'),
-          runtime: e.getAttribute('data-starfighter-runtime-initialized'),
-          title: e.getAttribute('data-starfighter-title-ready'),
-          firstFrame: e.getAttribute('data-starfighter-first-frame'),
-          platformReady: e.getAttribute('data-starfighter-platform-ready')
-        };
-      })()`,
-      returnByValue: true
-    });
+  await waitFor(`(() => {
+    const e = document.documentElement;
+    return e &&
+      e.getAttribute('data-starfighter-runtime-initialized') === '1' &&
+      e.getAttribute('data-starfighter-title-ready') === '1' &&
+      e.getAttribute('data-starfighter-first-frame') === '1';
+  })()`, 'Starfighter first rendered frame', 45000);
 
-    markers = result.result?.value || {};
-    if (
-      markers.firstFrame === '1' &&
-      markers.title === '1' &&
-      markers.runtime === '1'
-    ) break;
-    await sleep(250);
-  }
+  console.log('Core runtime reached first rendered frame');
 
-  console.log('Runtime markers:', JSON.stringify(markers));
-  if (!(markers.runtime === '1' && markers.title === '1' && markers.firstFrame === '1')) {
-    throw new Error('Starfighter did not reach the first rendered frame before timeout');
-  }
-
-  const dom = await send('Runtime.evaluate', {
-    expression: 'document.documentElement.outerHTML',
-    returnByValue: true
+  await send('Input.dispatchKeyEvent', {
+    type: 'keyDown',
+    key: ' ',
+    code: 'Space',
+    windowsVirtualKeyCode: 32,
+    nativeVirtualKeyCode: 32,
+    text: ' '
   });
-  fs.writeFileSync('dist/runtime-dom.html', dom.result.value || '');
+  await sleep(100);
+  await send('Input.dispatchKeyEvent', {
+    type: 'keyUp',
+    key: ' ',
+    code: 'Space',
+    windowsVirtualKeyCode: 32,
+    nativeVirtualKeyCode: 32
+  });
+
+  await waitFor(`document.documentElement && document.documentElement.getAttribute('data-starfighter-menu-ready') === '1'`, 'Starfighter main menu after Space input', 10000);
+  await sleep(500);
+  console.log('Keyboard input reached the Starfighter main menu');
+
+  const markers = await evaluate(`(() => {
+    const e = document.documentElement;
+    return {
+      prerun: e.getAttribute('data-starfighter-prerun'),
+      idbfsReady: e.getAttribute('data-starfighter-idbfs-ready'),
+      idbfsTimeout: e.getAttribute('data-starfighter-idbfs-timeout'),
+      runtime: e.getAttribute('data-starfighter-runtime-initialized'),
+      title: e.getAttribute('data-starfighter-title-ready'),
+      firstFrame: e.getAttribute('data-starfighter-first-frame'),
+      menu: e.getAttribute('data-starfighter-menu-ready'),
+      platformReady: e.getAttribute('data-starfighter-platform-ready')
+    };
+  })()`);
+  console.log('Runtime markers:', JSON.stringify(markers));
+
+  const dom = await evaluate('document.documentElement.outerHTML');
+  fs.writeFileSync('dist/runtime-dom.html', dom || '');
 
   const screenshot = await send('Page.captureScreenshot', {
     format: 'png',
