@@ -5,6 +5,8 @@ if [ -f emsdk/emsdk_env.sh ]; then
 fi
 node --version
 
+base64 -d scripts/yandex-sdk-mock.b64 > dist/sdk.js
+
 python3 -m http.server 8765 --bind 127.0.0.1 --directory dist >dist/runtime-server.log 2>&1 &
 SERVER_PID=$!
 
@@ -36,12 +38,14 @@ BROWSER_PID=$!
 cleanup() {
   kill "$BROWSER_PID" 2>/dev/null || true
   kill "$SERVER_PID" 2>/dev/null || true
-  rm -rf "$PROFILE_DIR"
+  rm -f dist/sdk.js
+  rm -rf "$PROFILE_DIR" || true
 }
 trap cleanup EXIT
 
 cp scripts/cdp-smoke.js.txt /tmp/cdp-smoke.js
 node /tmp/cdp-smoke.js
+rm -f dist/sdk.js
 
 test -s dist/runtime-smoke.png
 SIZE="$(stat -c%s dist/runtime-smoke.png)"
@@ -50,7 +54,11 @@ echo "Runtime screenshot: ${SIZE} bytes"
 grep -q 'data-starfighter-runtime-initialized="1"' dist/runtime-dom.html
 grep -q 'data-starfighter-title-ready="1"' dist/runtime-dom.html
 grep -q 'data-starfighter-first-frame="1"' dist/runtime-dom.html
-echo "Runtime markers: runtime + title + first-frame OK"
+grep -q 'data-yandex-sdk-init="1"' dist/runtime-dom.html
+grep -q 'data-yandex-player-ready="1"' dist/runtime-dom.html
+grep -q 'data-yandex-get-data="1"' dist/runtime-dom.html
+grep -q 'data-yandex-loading-ready="1"' dist/runtime-dom.html
+echo "Runtime markers: game + Yandex bootstrap OK"
 
 if grep -Eqi 'Aborted\(|RuntimeError:|unhandled exception|failed to asynchronously prepare wasm|wasm streaming compile failed' dist/runtime-browser.log; then
   echo "Runtime abort/error detected in browser log" >&2
