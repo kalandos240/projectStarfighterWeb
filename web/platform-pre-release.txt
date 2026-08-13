@@ -8,10 +8,12 @@ globalThis.starfighterGameplayReported = false;
 const STARFIGHTER_SAVE_DIR = '/home/web_user/.config/starfighter';
 const STARFIGHTER_CLOUD_KEY = 'starfighterCloudSaveV1';
 const STARFIGHTER_META_FILE = '.webmeta.json';
-const STARFIGHTER_SAVE_FILES = [
+const STARFIGHTER_PROGRESS_FILES = [
   'save00.sav', 'save01.sav', 'save02.sav',
-  'save03.sav', 'save04.sav', 'save05.sav', 'conf'
+  'save03.sav', 'save04.sav', 'save05.sav'
 ];
+const STARFIGHTER_SAVE_FILES = [...STARFIGHTER_PROGRESS_FILES, 'conf'];
+let starfighterCloudRestoreOpen = true;
 
 function starfighterSleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -37,7 +39,7 @@ function starfighterReadLocalTimestamp() {
   }
 
   let newest = 0;
-  for (const name of STARFIGHTER_SAVE_FILES) {
+  for (const name of STARFIGHTER_PROGRESS_FILES) {
     const path = STARFIGHTER_SAVE_DIR + '/' + name;
     try {
       if (!starfighterFileExists(path)) continue;
@@ -73,6 +75,15 @@ function starfighterWriteMetadata(updatedAt) {
   } catch (err) {
     console.warn('Could not write Starfighter web metadata:', err);
   }
+}
+
+function starfighterPersistLocalStorage() {
+  return new Promise(resolve => {
+    FS.syncfs(false, function (err) {
+      if (err) console.warn('Could not persist Starfighter IDBFS data:', err);
+      resolve();
+    });
+  });
 }
 
 function starfighterApplyGameplayState() {
@@ -138,7 +149,7 @@ globalThis.starfighterSdkPromise = (typeof YaGames !== 'undefined')
 
 async function starfighterRestoreCloudSave() {
   const sdk = await globalThis.starfighterSdkPromise;
-  if (!sdk || !globalThis.starfighterPlayer) return;
+  if (!starfighterCloudRestoreOpen || !sdk || !globalThis.starfighterPlayer) return;
 
   let data;
   try {
@@ -148,13 +159,17 @@ async function starfighterRestoreCloudSave() {
     return;
   }
 
+  if (!starfighterCloudRestoreOpen) return;
+
   const cloud = data && data[STARFIGHTER_CLOUD_KEY];
   if (!cloud || cloud.version !== 1 || !cloud.files || !Number.isFinite(cloud.updatedAt)) return;
 
   const localUpdatedAt = starfighterReadLocalTimestamp();
   if (localUpdatedAt >= cloud.updatedAt) return;
+  if (!starfighterCloudRestoreOpen) return;
 
   for (const name of STARFIGHTER_SAVE_FILES) {
+    if (!starfighterCloudRestoreOpen) return;
     if (typeof cloud.files[name] !== 'string') continue;
     try {
       FS.writeFile(STARFIGHTER_SAVE_DIR + '/' + name, cloud.files[name]);
@@ -162,7 +177,10 @@ async function starfighterRestoreCloudSave() {
       console.warn('Could not restore cloud file:', name, err);
     }
   }
+
+  if (!starfighterCloudRestoreOpen) return;
   starfighterWriteMetadata(cloud.updatedAt);
+  await starfighterPersistLocalStorage();
   document.documentElement.setAttribute('data-starfighter-cloud-restored', '1');
 }
 
@@ -171,6 +189,7 @@ globalThis.starfighterScheduleCloudPush = function () {
   if (starfighterCloudPushTimer !== null) clearTimeout(starfighterCloudPushTimer);
   starfighterCloudPushTimer = setTimeout(async function () {
     starfighterCloudPushTimer = null;
+    await globalThis.starfighterSdkPromise;
     const player = globalThis.starfighterPlayer;
     if (!player) return;
 
@@ -206,6 +225,7 @@ Module['preRun'].push(function () {
   function releaseStartup(timedOut) {
     if (dependencyReleased) return;
     dependencyReleased = true;
+    starfighterCloudRestoreOpen = false;
     if (timedOut) {
       document.documentElement.setAttribute('data-starfighter-storage-timeout', '1');
       console.warn('Starfighter storage restore timed out; continuing startup.');
