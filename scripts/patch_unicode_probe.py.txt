@@ -1,0 +1,24 @@
+from pathlib import Path
+
+path = Path('upstream/src/title.c')
+source = path.read_text()
+old = '''\tgfx_loadSprites();
+
+\tscreen_clear(black);
+'''
+new = '''\tgfx_loadSprites();
+
+#ifdef __EMSCRIPTEN__
+\tSDL_Surface *webUnicodeTest = gfx_createSurface(256, 32);
+\tgfx_renderUnicode("Проверка", 0, 0, FONT_WHITE, 0, webUnicodeTest);
+\tSDL_FreeSurface(webUnicodeTest);
+\tEM_ASM({ document.documentElement.setAttribute('data-starfighter-unicode-test', '1'); });
+#endif
+
+\tscreen_clear(black);
+'''
+if new not in source:
+    if old not in source:
+        raise SystemExit('unicode probe marker not found')
+    source = source.replace(old, new, 1)
+path.write_text(source)
