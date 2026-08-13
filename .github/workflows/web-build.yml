@@ -35,6 +35,10 @@ jobs:
           source emsdk/emsdk_env.sh
           emcc --version
 
+      - name: Prepare web platform bridge
+        run: |
+          echo 'TW9kdWxlWydwcmVSdW4nXSA9IE1vZHVsZVsncHJlUnVuJ10gfHwgW107Ck1vZHVsZVsncHJlUnVuJ10ucHVzaChmdW5jdGlvbiAoKSB7CiAgdmFyIHNhdmVQYXRoID0gJy9ob21lL3dlYl91c2VyLy5jb25maWcvc3RhcmZpZ2h0ZXInOwogIEZTLm1rZGlyVHJlZShzYXZlUGF0aCk7CiAgRlMubW91bnQoSURCRlMsIHsgYXV0b1BlcnNpc3Q6IHRydWUgfSwgc2F2ZVBhdGgpOwogIGFkZFJ1bkRlcGVuZGVuY3koJ3N0YXJmaWdodGVyLWlkYmZzJyk7CiAgRlMuc3luY2ZzKHRydWUsIGZ1bmN0aW9uIChlcnIpIHsKICAgIGlmIChlcnIpIGNvbnNvbGUuZXJyb3IoJ0lEQkZTIGluaXRpYWwgc3luYyBmYWlsZWQ6JywgZXJyKTsKICAgIHJlbW92ZVJ1bkRlcGVuZGVuY3koJ3N0YXJmaWdodGVyLWlkYmZzJyk7CiAgfSk7Cn0pOwoKTW9kdWxlWydvblJ1bnRpbWVJbml0aWFsaXplZCddID0gZnVuY3Rpb24gKCkgewogIGlmICh0eXBlb2YgWWFHYW1lcyAhPT0gJ3VuZGVmaW5lZCcpIHsKICAgIFlhR2FtZXMuaW5pdCgpLnRoZW4oZnVuY3Rpb24gKHNkaykgewogICAgICBnbG9iYWxUaGlzLnlzZGsgPSBzZGs7CiAgICAgIGlmIChzZGsuZmVhdHVyZXMgJiYgc2RrLmZlYXR1cmVzLkxvYWRpbmdBUEkpIHsKICAgICAgICBzZGsuZmVhdHVyZXMuTG9hZGluZ0FQSS5yZWFkeSgpOwogICAgICB9CiAgICB9KS5jYXRjaChmdW5jdGlvbiAoZXJyKSB7CiAgICAgIGNvbnNvbGUud2FybignWWFuZGV4IEdhbWVzIFNESyBpbml0aWFsaXphdGlvbiBmYWlsZWQ6JywgZXJyKTsKICAgIH0pOwogIH0KfTsK' | base64 -d > web/platform-pre.js
+
       - name: Build first browser target
         run: |
           source emsdk/emsdk_env.sh
@@ -54,6 +58,8 @@ jobs:
             -sALLOW_MEMORY_GROWTH=1 \
             -sFORCE_FILESYSTEM=1 \
             -sEXIT_RUNTIME=0 \
+            -lidbfs.js \
+            --pre-js web/platform-pre.js \
             --preload-file upstream/data@/data \
             --preload-file upstream/gfx@/gfx \
             --preload-file upstream/sound@/sound \
