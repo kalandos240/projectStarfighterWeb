@@ -1,0 +1,84 @@
+#include <string.h>
+#include <emscripten.h>
+
+#include "defs.h"
+
+EM_JS(int, starfighter_web_is_russian, (), {
+    const sdkLang = globalThis.starfighterYsdk &&
+        globalThis.starfighterYsdk.environment &&
+        globalThis.starfighterYsdk.environment.i18n &&
+        globalThis.starfighterYsdk.environment.i18n.lang;
+    const lang = String(sdkLang || navigator.language || '').toLowerCase();
+    return lang === 'ru' || lang.startsWith('ru-') || lang.startsWith('ru_');
+});
+
+typedef struct WebTranslation
+{
+    const char *source;
+    const char *russian;
+} WebTranslation;
+
+static const WebTranslation webTranslations[] = {
+    {"START NEW GAME", "НОВАЯ ИГРА"},
+    {"LOAD GAME", "ЗАГРУЗИТЬ ИГРУ"},
+    {"CONTINUE CURRENT GAME", "ПРОДОЛЖИТЬ ИГРУ"},
+    {"OPTIONS", "НАСТРОЙКИ"},
+    {"CREDITS", "АВТОРЫ"},
+    {"CHEAT OPTIONS", "НАСТРОЙКИ ЧИТОВ"},
+    {"QUIT", "ВЫХОД"},
+    {"START GAME", "НАЧАТЬ ИГРУ"},
+    {"DIFFICULTY - %s", "СЛОЖНОСТЬ — %s"},
+    {"BACK TO MAIN MENU", "НАЗАД В ГЛАВНОЕ МЕНЮ"},
+
+    {"SOUND - ON", "ЗВУК — ВКЛ"},
+    {"SOUND - OFF", "ЗВУК — ВЫКЛ"},
+    {"MUSIC - ON", "МУЗЫКА — ВКЛ"},
+    {"MUSIC - OFF", "МУЗЫКА — ВЫКЛ"},
+    {"FULLSCREEN - ON", "ПОЛНЫЙ ЭКРАН — ВКЛ"},
+    {"FULLSCREEN - OFF", "ПОЛНЫЙ ЭКРАН — ВЫКЛ"},
+    {"AUTOPAUSE - ON", "АВТОПАУЗА — ВКЛ"},
+    {"AUTOPAUSE - OFF", "АВТОПАУЗА — ВЫКЛ"},
+    {"MESSAGE SPEED - INSTANT", "СКОРОСТЬ СООБЩЕНИЙ — МГНОВЕННО"},
+    {"MESSAGE SPEED - FAST", "СКОРОСТЬ СООБЩЕНИЙ — БЫСТРО"},
+    {"MESSAGE SPEED - NORMAL", "СКОРОСТЬ СООБЩЕНИЙ — ОБЫЧНО"},
+    {"MESSAGE SPEED - SLOW", "СКОРОСТЬ СООБЩЕНИЙ — МЕДЛЕННО"},
+    {"MESSAGE SPEED - SLOTH", "СКОРОСТЬ СООБЩЕНИЙ — ОЧЕНЬ МЕДЛЕННО"},
+    {"MESSAGE SPEED - ERROR", "СКОРОСТЬ СООБЩЕНИЙ — ОШИБКА"},
+
+    {"UNLIMITED SHIELD - ON", "БЕСКОНЕЧНЫЙ ЩИТ — ВКЛ"},
+    {"UNLIMITED SHIELD - OFF", "БЕСКОНЕЧНЫЙ ЩИТ — ВЫКЛ"},
+    {"UNLIMITED AMMO - ON", "БЕСКОНЕЧНЫЙ БОЕЗАПАС — ВКЛ"},
+    {"UNLIMITED AMMO - OFF", "БЕСКОНЕЧНЫЙ БОЕЗАПАС — ВЫКЛ"},
+    {"UNLIMITED CASH - ON", "БЕСКОНЕЧНЫЕ ДЕНЬГИ — ВКЛ"},
+    {"UNLIMITED CASH - OFF", "БЕСКОНЕЧНЫЕ ДЕНЬГИ — ВЫКЛ"},
+    {"UNLIMITED TIME - ON", "БЕСКОНЕЧНОЕ ВРЕМЯ — ВКЛ"},
+    {"UNLIMITED TIME - OFF", "БЕСКОНЕЧНОЕ ВРЕМЯ — ВЫКЛ"},
+
+    {"Assisted", "С ПОДДЕРЖКОЙ"},
+    {"Easy", "ЛЁГКАЯ"},
+    {"Normal", "НОРМАЛЬНАЯ"},
+    {"Hard", "СЛОЖНАЯ"},
+    {"Nightmare!", "КОШМАР!"},
+    {"Classic", "КЛАССИКА"},
+
+    {"AUTOSAVE", "АВТОСОХРАНЕНИЕ"},
+    {"!!! WARNING: SHIELD LOW !!!", "!!! ВНИМАНИЕ: ЩИТ ОСЛАБ !!!"},
+    {"!!! WARNING: SHIELD CRITICAL !!!", "!!! ВНИМАНИЕ: ЩИТ КРИТИЧЕСКИ ОСЛАБ !!!"},
+    {"Mission Time: %02ld:%02ld", "Время миссии: %02ld:%02ld"},
+    {"Rockets: %.2d", "Ракеты: %.2d"},
+    {NULL, NULL}
+};
+
+const char *starfighter_web_gettext(const char *source)
+{
+    if ((source == NULL) || !starfighter_web_is_russian())
+        return source;
+
+    for (int i = 0; webTranslations[i].source != NULL; i++)
+    {
+        if (strcmp(source, webTranslations[i].source) == 0)
+            return webTranslations[i].russian;
+    }
+
+    return source;
+}
