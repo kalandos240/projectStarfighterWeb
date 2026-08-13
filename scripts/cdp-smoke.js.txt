@@ -78,6 +78,26 @@ async function main() {
     throw new Error('Timed out waiting for ' + label);
   }
 
+  async function pressSpace() {
+    await send('Input.dispatchKeyEvent', {
+      type: 'keyDown',
+      key: ' ',
+      code: 'Space',
+      windowsVirtualKeyCode: 32,
+      nativeVirtualKeyCode: 32,
+      text: ' '
+    });
+    await sleep(100);
+    await send('Input.dispatchKeyEvent', {
+      type: 'keyUp',
+      key: ' ',
+      code: 'Space',
+      windowsVirtualKeyCode: 32,
+      nativeVirtualKeyCode: 32
+    });
+    await sleep(250);
+  }
+
   await send('Runtime.enable');
   await send('Page.enable');
 
@@ -91,26 +111,18 @@ async function main() {
 
   console.log('Core runtime reached first rendered frame');
 
-  await send('Input.dispatchKeyEvent', {
-    type: 'keyDown',
-    key: ' ',
-    code: 'Space',
-    windowsVirtualKeyCode: 32,
-    nativeVirtualKeyCode: 32,
-    text: ' '
-  });
-  await sleep(100);
-  await send('Input.dispatchKeyEvent', {
-    type: 'keyUp',
-    key: ' ',
-    code: 'Space',
-    windowsVirtualKeyCode: 32,
-    nativeVirtualKeyCode: 32
-  });
-
+  await pressSpace();
   await waitFor(`document.documentElement && document.documentElement.getAttribute('data-starfighter-menu-ready') === '1'`, 'Starfighter main menu after Space input', 10000);
-  await sleep(500);
   console.log('Keyboard input reached the Starfighter main menu');
+
+  await pressSpace();
+  await waitFor(`document.documentElement && document.documentElement.getAttribute('data-starfighter-difficulty-ready') === '1'`, 'Starfighter difficulty menu', 10000);
+  console.log('New game selection reached the difficulty menu');
+
+  await pressSpace();
+  await waitFor(`globalThis.starfighterGameplayDesired === true`, 'Starfighter mission gameplay start', 30000);
+  await sleep(1500);
+  console.log('Difficulty confirmation entered actual mission gameplay');
 
   const markers = await evaluate(`(() => {
     const e = document.documentElement;
@@ -122,7 +134,9 @@ async function main() {
       title: e.getAttribute('data-starfighter-title-ready'),
       firstFrame: e.getAttribute('data-starfighter-first-frame'),
       menu: e.getAttribute('data-starfighter-menu-ready'),
-      platformReady: e.getAttribute('data-starfighter-platform-ready')
+      difficulty: e.getAttribute('data-starfighter-difficulty-ready'),
+      platformReady: e.getAttribute('data-starfighter-platform-ready'),
+      gameplayDesired: globalThis.starfighterGameplayDesired === true
     };
   })()`);
   console.log('Runtime markers:', JSON.stringify(markers));
