@@ -24,3 +24,4 @@ if new not in source:
 path.write_text(source)
 
 exec(Path('scripts/patch_web_menu.py.txt').read_text(), {})
+exec(Path('scripts/patch_i18n_campaign.py.txt').read_text(), {})
