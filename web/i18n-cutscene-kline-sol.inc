@@ -1,0 +1,5 @@
+    {"A few hours later, in the Sol system, news has already spread of Chris Bainfield's heroic actions. The commander of WEAPCO's navy considers his options.", "Через несколько часов в системе Sol уже распространяются новости о действиях Криса Бейнфилда. Командующий флотом WEAPCO обдумывает дальнейшие шаги."},
+    {"The Emperor will not be pleased. Spirit is now a free star system thanks to that interfering rebel pilot.", "Император будет недоволен. Из-за вмешательства этого пилота-повстанца система Spirit теперь свободна."},
+    {"It was reported that he was able to take down one of our most powerful frigates in under 3 minutes!", "Докладывают, что он справился с одним из наших самых мощных фрегатов меньше чем за три минуты!"},
+    {"Talent like that does not appear every day. He would be a perfect candidate for our new AI training program!", "Такой талант встречается не каждый день. Он был бы идеальным кандидатом для нашей новой программы обучения ИИ!"},
+    {"What a pity I must kill him...", "Какая жалость, что мне придётся его устранить..."},
