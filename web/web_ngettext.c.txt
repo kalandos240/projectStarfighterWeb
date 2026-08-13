@@ -25,12 +25,16 @@ const char *starfighter_web_ngettext(const char *singular, const char *plural, u
         return "Получено: $%d";
     if ((singular != NULL) && strcmp(singular, "Got %d rocket") == 0)
         return "Получено ракет: %d";
+    if ((singular != NULL) && strstr(singular, "plasma cell") != NULL)
+        return "Получено плазменных ячеек: %d";
     if (starfighter_starts_with(singular, "Collect $%d more"))
         return "Осталось собрать: $%d...";
     if (starfighter_starts_with(singular, "Collect %d more cargo pod"))
         return "Осталось контейнеров: %d...";
     if (starfighter_starts_with(singular, "Collect %d more piece of ore"))
         return "Осталось руды: %d...";
+    if ((singular != NULL) && strstr(singular, "target") != NULL)
+        return "Осталось целей: %d...";
 
     return source;
 }
