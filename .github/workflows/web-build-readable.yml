@@ -37,7 +37,7 @@ jobs:
 
       - name: Prepare platform bridge and web patches
         run: |
-          cp web/platform-pre-debug.txt web/platform-pre.js
+          cp web/platform-pre-timeout.txt web/platform-pre.js
           cp scripts/patch_web.py.txt /tmp/patch_web.py
           python3 /tmp/patch_web.py
 
