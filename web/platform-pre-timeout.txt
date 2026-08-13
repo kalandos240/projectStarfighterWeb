@@ -47,8 +47,13 @@ Module['preRun'].push(function () {
   }, 3000);
 });
 
+var starfighterShellRuntimeInitialized = Module['onRuntimeInitialized'];
 Module['onRuntimeInitialized'] = function () {
   document.documentElement.setAttribute('data-starfighter-runtime-initialized', '1');
+
+  if (typeof starfighterShellRuntimeInitialized === 'function') {
+    starfighterShellRuntimeInitialized();
+  }
 
   if (typeof YaGames !== 'undefined') {
     YaGames.init().then(function (sdk) {
