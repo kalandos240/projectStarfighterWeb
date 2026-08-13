@@ -3,18 +3,74 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
   <title>Project: Starfighter</title>
   <script src="/sdk.js"></script>
   <style>
     html,body{margin:0;width:100%;height:100%;background:#000;overflow:hidden}
-    body{display:flex;align-items:center;justify-content:center}
-    #canvas{width:100%;height:100%;object-fit:contain;outline:none}
+    body{display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif}
+    #canvas{width:100%;height:100%;object-fit:contain;outline:none;display:block}
+    #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;background:#000;z-index:10}
+    #loading.hidden{display:none}
   </style>
 </head>
 <body>
-  <canvas id="canvas" tabindex="0"></canvas>
+  <div id="loading">Loading Project: Starfighter…</div>
+  <canvas id="canvas" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
   <script>
-    var Module={canvas:document.getElementById('canvas')};
+    const canvas=document.getElementById('canvas');
+    const loading=document.getElementById('loading');
+    window.ysdk=null;
+    window.sfGameplayActive=false;
+
+    function sfPauseFromPlatform(){
+      if(window.Module&&typeof Module.ccall==='function'){
+        try{Module.ccall('sf_web_set_platform_paused',null,['number'],[1]);}catch(e){}
+      }
+    }
+
+    function sfResumeFromPlatform(){
+      if(window.Module&&typeof Module.ccall==='function'){
+        try{Module.ccall('sf_web_set_platform_paused',null,['number'],[0]);}catch(e){}
+      }
+    }
+
+    window.sfGameplayStart=function(){
+      if(window.ysdk&&ysdk.features&&ysdk.features.GameplayAPI&&!window.sfGameplayActive){
+        ysdk.features.GameplayAPI.start();
+        window.sfGameplayActive=true;
+      }
+    };
+
+    window.sfGameplayStop=function(){
+      if(window.ysdk&&ysdk.features&&ysdk.features.GameplayAPI&&window.sfGameplayActive){
+        ysdk.features.GameplayAPI.stop();
+        window.sfGameplayActive=false;
+      }
+    };
+
+    if(window.YaGames){
+      YaGames.init().then(function(sdk){
+        window.ysdk=sdk;
+        if(sdk.events){
+          sdk.events.on('game_api_pause',sfPauseFromPlatform);
+          sdk.events.on('game_api_resume',sfResumeFromPlatform);
+        }
+      }).catch(function(){
+        window.ysdk=null;
+      });
+    }
+
+    var Module={
+      canvas:canvas,
+      onRuntimeInitialized:function(){
+        loading.classList.add('hidden');
+        canvas.focus();
+        if(window.ysdk&&ysdk.features&&ysdk.features.LoadingAPI){
+          ysdk.features.LoadingAPI.ready();
+        }
+      }
+    };
   </script>
   {{{ SCRIPT }}}
 </body>
