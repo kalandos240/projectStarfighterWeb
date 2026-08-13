@@ -1,0 +1,117 @@
+from pathlib import Path
+
+
+def add_emscripten_include(path):
+    source = path.read_text()
+    old = '#include "SDL.h"\n'
+    new = '#include "SDL.h"\n\n#ifdef __EMSCRIPTEN__\n#include <emscripten.h>\n#endif\n'
+    if new not in source:
+        if old not in source:
+            raise SystemExit(f'SDL include marker not found in {path}')
+        source = source.replace(old, new, 1)
+    path.write_text(source)
+
+
+# Platform pause/resume hook in the central frame delay.
+game_path = Path('upstream/src/game.c')
+add_emscripten_include(game_path)
+source = game_path.read_text()
+old = '''void game_delayFrame()
+{
+\tUint32 now = SDL_GetTicks();
+
+\t// Add 16 2/3 (= 1000 / 60) to frameLimit
+\tframeLimit += 16;
+\tthirds += 2;
+\twhile (thirds >= 3)
+\t{
+\t\tthirds -= 3;
+\t\tframeLimit++;
+\t}
+
+\tif(now < frameLimit)
+\t\tSDL_Delay(frameLimit - now);
+\telse
+\t\tframeLimit = now;
+}
+'''
+new = '''void game_delayFrame()
+{
+#ifdef __EMSCRIPTEN__
+\tif (EM_ASM_INT({ return globalThis.starfighterPlatformPaused ? 1 : 0; }))
+\t{
+#ifndef NOSOUND
+\t\tint resumeMusic = Mix_PlayingMusic() && !Mix_PausedMusic();
+\t\tif (resumeMusic)
+\t\t\tMix_PauseMusic();
+\t\tMix_Pause(-1);
+#endif
+
+\t\twhile (EM_ASM_INT({ return globalThis.starfighterPlatformPaused ? 1 : 0; }))
+\t\t\tSDL_Delay(50);
+
+#ifndef NOSOUND
+\t\tif (resumeMusic)
+\t\t\tMix_ResumeMusic();
+\t\tMix_Resume(-1);
+#endif
+\t\tframeLimit = SDL_GetTicks();
+\t}
+#endif
+
+\tUint32 now = SDL_GetTicks();
+
+\t// Add 16 2/3 (= 1000 / 60) to frameLimit
+\tframeLimit += 16;
+\tthirds += 2;
+\twhile (thirds >= 3)
+\t{
+\t\tthirds -= 3;
+\t\tframeLimit++;
+\t}
+
+\tif(now < frameLimit)
+\t\tSDL_Delay(frameLimit - now);
+\telse
+\t\tframeLimit = now;
+}
+'''
+if new not in source:
+    if old not in source:
+        raise SystemExit('game_delayFrame marker not found')
+    source = source.replace(old, new, 1)
+game_path.write_text(source)
+
+
+# Notify Yandex LoadingAPI only after the title screen is initialized and interactive.
+title_path = Path('upstream/src/title.c')
+add_emscripten_include(title_path)
+source = title_path.read_text()
+old = '''#ifdef OLD_MUSIC
+\taudio_playMusic("music/Platinum.mod", 1);
+#else
+\taudio_playMusic("music/android_oppression.ogg", 1);
+#endif
+
+\twhile (!engine.done)
+'''
+new = '''#ifdef OLD_MUSIC
+\taudio_playMusic("music/Platinum.mod", 1);
+#else
+\taudio_playMusic("music/android_oppression.ogg", 1);
+#endif
+
+#ifdef __EMSCRIPTEN__
+\tEM_ASM({
+\t\tif (globalThis.starfighterPlatformReady)
+\t\t\tglobalThis.starfighterPlatformReady();
+\t});
+#endif
+
+\twhile (!engine.done)
+'''
+if new not in source:
+    if old not in source:
+        raise SystemExit('title ready marker not found')
+    source = source.replace(old, new, 1)
+title_path.write_text(source)
