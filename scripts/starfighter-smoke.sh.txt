@@ -36,7 +36,8 @@ BROWSER_PID=$!
 cleanup() {
   kill "$BROWSER_PID" 2>/dev/null || true
   kill "$SERVER_PID" 2>/dev/null || true
-  rm -rf "$PROFILE_DIR"
+  sleep 0.2
+  rm -rf "$PROFILE_DIR" 2>/dev/null || true
 }
 trap cleanup EXIT
 
