@@ -1,0 +1,5 @@
+    {"Firing rate already at maximum", "Скорострельность уже максимальна"},
+    {"Firing rate increased", "Скорострельность повышена"},
+    {"Plasma output already at maximum", "Мощность плазмы уже максимальна"},
+    {"Plasma output increased", "Мощность плазмы повышена"},
+    {"Picked up a Super Charge!", "Получен суперзаряд!"},
