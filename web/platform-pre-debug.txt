@@ -1,0 +1,39 @@
+globalThis.starfighterPlatformPaused = false;
+globalThis.starfighterLoadingReadySent = false;
+globalThis.starfighterYsdk = null;
+
+globalThis.starfighterPlatformReady = function () {
+  document.documentElement.setAttribute('data-starfighter-platform-ready', '1');
+  if (globalThis.starfighterLoadingReadySent) return;
+  globalThis.starfighterLoadingReadySent = true;
+  var sdk = globalThis.starfighterYsdk;
+  if (sdk && sdk.features && sdk.features.LoadingAPI) sdk.features.LoadingAPI.ready();
+};
+
+Module['preRun'] = Module['preRun'] || [];
+Module['preRun'].push(function () {
+  document.documentElement.setAttribute('data-starfighter-prerun', '1');
+  var savePath = '/home/web_user/.config/starfighter';
+  FS.mkdirTree(savePath);
+  FS.mount(IDBFS, { autoPersist: true }, savePath);
+  addRunDependency('starfighter-idbfs');
+  FS.syncfs(true, function (err) {
+    if (err) console.error('IDBFS initial sync failed:', err);
+    document.documentElement.setAttribute('data-starfighter-idbfs-ready', '1');
+    removeRunDependency('starfighter-idbfs');
+  });
+});
+
+Module['onRuntimeInitialized'] = function () {
+  document.documentElement.setAttribute('data-starfighter-runtime-initialized', '1');
+  if (typeof YaGames !== 'undefined') {
+    YaGames.init().then(function (sdk) {
+      globalThis.starfighterYsdk = sdk;
+      sdk.on('game_api_pause', function () { globalThis.starfighterPlatformPaused = true; });
+      sdk.on('game_api_resume', function () { globalThis.starfighterPlatformPaused = false; });
+      if (globalThis.starfighterLoadingReadySent && sdk.features && sdk.features.LoadingAPI) sdk.features.LoadingAPI.ready();
+    }).catch(function (err) {
+      console.warn('Yandex Games SDK initialization failed:', err);
+    });
+  }
+};
