@@ -25,6 +25,7 @@ PROFILE_DIR="$(mktemp -d)"
   --autoplay-policy=no-user-gesture-required \
   --enable-logging=stderr \
   --v=0 \
+  --lang=ru-RU \
   --window-size=1280,720 \
   --remote-debugging-address=127.0.0.1 \
   --remote-debugging-port=9222 \
