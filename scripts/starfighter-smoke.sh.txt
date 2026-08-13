@@ -1,0 +1,35 @@
+set -euo pipefail
+python3 -m http.server 8765 --bind 127.0.0.1 --directory dist >dist/runtime-server.log 2>&1 &
+SERVER_PID=$!
+trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+sleep 1
+BROWSER="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+if [ -z "$BROWSER" ]; then
+  echo "No Chromium-compatible browser found on runner" >&2
+  exit 1
+fi
+"$BROWSER" \
+  --headless=new \
+  --no-sandbox \
+  --disable-dev-shm-usage \
+  --use-angle=swiftshader \
+  --enable-unsafe-swiftshader \
+  --autoplay-policy=no-user-gesture-required \
+  --enable-logging=stderr \
+  --v=0 \
+  --virtual-time-budget=15000 \
+  --window-size=1280,720 \
+  --screenshot=dist/runtime-smoke.png \
+  http://127.0.0.1:8765/index.html \
+  >dist/runtime-browser.stdout 2>dist/runtime-browser.log || {
+    cat dist/runtime-browser.log >&2
+    exit 1
+  }
+test -s dist/runtime-smoke.png
+SIZE="$(stat -c%s dist/runtime-smoke.png)"
+echo "Runtime screenshot: ${SIZE} bytes"
+if grep -Eqi 'Aborted\(|RuntimeError:|unhandled exception|failed to asynchronously prepare wasm|wasm streaming compile failed' dist/runtime-browser.log; then
+  echo "Runtime abort/error detected in browser log" >&2
+  cat dist/runtime-browser.log >&2
+  exit 1
+fi
