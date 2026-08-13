@@ -103,6 +103,7 @@ new = '''#ifdef OLD_MUSIC
 
 #ifdef __EMSCRIPTEN__
 \tEM_ASM({
+\t\tdocument.documentElement.setAttribute('data-starfighter-title-ready', '1');
 \t\tif (globalThis.starfighterPlatformReady)
 \t\t\tglobalThis.starfighterPlatformReady();
 \t});
@@ -114,4 +115,21 @@ if new not in source:
     if old not in source:
         raise SystemExit('title ready marker not found')
     source = source.replace(old, new, 1)
+
+frame_old = '''\twhile (!engine.done)
+\t{
+\t\trenderer_update();
+'''
+frame_new = '''\twhile (!engine.done)
+\t{
+\t\trenderer_update();
+#ifdef __EMSCRIPTEN__
+\t\tEM_ASM({ document.documentElement.setAttribute('data-starfighter-first-frame', '1'); });
+#endif
+'''
+if frame_new not in source:
+    if frame_old not in source:
+        raise SystemExit('title first-frame marker not found')
+    source = source.replace(frame_old, frame_new, 1)
+
 title_path.write_text(source)
