@@ -67,6 +67,7 @@ jobs:
             -sFORCE_FILESYSTEM=1 \
             -sEXIT_RUNTIME=0 \
             -sSINGLE_FILE=1 \
+            -sSINGLE_FILE_BINARY_ENCODE=0 \
             -lidbfs.js \
             --pre-js web/platform-pre.js \
             --embed-file upstream/data@/data \
@@ -79,7 +80,7 @@ jobs:
           test -s dist/index.html
           du -ah dist | sort -h | tail -n 20
 
-      - name: Hosted Chromium runtime smoke test
+      - name: Direct file Chromium runtime smoke test
         run: |
           cp scripts/starfighter-smoke.sh.txt /tmp/starfighter-smoke.sh
           bash /tmp/starfighter-smoke.sh
