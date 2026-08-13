@@ -37,8 +37,8 @@ jobs:
 
       - name: Prepare platform bridge and web patches
         run: |
-          cp web/platform-pre-timeout.txt web/platform-pre.js
-          cp scripts/patch_web.py.txt /tmp/patch_web.py
+          cp web/platform-pre-release.txt web/platform-pre.js
+          cp scripts/patch_web_release.py.txt /tmp/patch_web.py
           python3 /tmp/patch_web.py
 
       - name: Build browser target

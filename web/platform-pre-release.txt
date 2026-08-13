@@ -185,13 +185,13 @@ globalThis.starfighterScheduleCloudPush = function () {
           updatedAt: updatedAt,
           files: files
         }
-      }, false);
+      }, true);
       starfighterWriteMetadata(updatedAt);
       document.documentElement.setAttribute('data-starfighter-cloud-saved', '1');
     } catch (err) {
       console.warn('Could not upload Starfighter cloud save:', err);
     }
-  }, 1500);
+  }, 750);
 };
 
 Module['preRun'] = Module['preRun'] || [];
@@ -241,6 +241,10 @@ Module['preRun'].push(function () {
   }, 4000);
 });
 
+var starfighterShellRuntimeInitialized = Module['onRuntimeInitialized'];
 Module['onRuntimeInitialized'] = function () {
   document.documentElement.setAttribute('data-starfighter-runtime-initialized', '1');
+  if (typeof starfighterShellRuntimeInitialized === 'function') {
+    starfighterShellRuntimeInitialized();
+  }
 };
