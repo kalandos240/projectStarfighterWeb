@@ -67,6 +67,18 @@ async function main() {
     return result.result?.value;
   }
 
+  async function evaluateAwait(expression) {
+    const result = await send('Runtime.evaluate', {
+      expression,
+      returnByValue: true,
+      awaitPromise: true
+    });
+    if (result.exceptionDetails) {
+      throw new Error('Browser evaluation failed: ' + JSON.stringify(result.exceptionDetails));
+    }
+    return result.result?.value;
+  }
+
   async function waitFor(expression, label, timeoutMs = 30000) {
     const stopAt = Date.now() + timeoutMs;
     while (Date.now() < stopAt) {
@@ -149,6 +161,36 @@ async function main() {
     captureBeyondViewport: false
   });
   fs.writeFileSync('dist/runtime-smoke.png', Buffer.from(screenshot.data, 'base64'));
+
+  const persistencePath = '/home/web_user/.config/starfighter/.qa-persistence';
+  const persistenceValue = 'starfighter-idbfs-ok';
+  await evaluateAwait(`new Promise((resolve, reject) => {
+    try {
+      FS.writeFile(${JSON.stringify(persistencePath)}, ${JSON.stringify(persistenceValue)});
+      FS.syncfs(false, err => err ? reject(String(err)) : resolve(true));
+    } catch (err) {
+      reject(String(err));
+    }
+  })`);
+  console.log('IDBFS QA marker persisted before reload');
+
+  await send('Page.reload', { ignoreCache: true });
+  await sleep(750);
+  await waitFor(`(() => {
+    const e = document.documentElement;
+    return e &&
+      e.getAttribute('data-starfighter-runtime-initialized') === '1' &&
+      e.getAttribute('data-starfighter-idbfs-ready') === '1';
+  })()`, 'Starfighter runtime and IDBFS after reload', 45000);
+
+  await waitFor(`(() => {
+    try {
+      return FS.readFile(${JSON.stringify(persistencePath)}, { encoding: 'utf8' }) === ${JSON.stringify(persistenceValue)};
+    } catch (_) {
+      return false;
+    }
+  })()`, 'persisted IDBFS marker after reload', 10000);
+  console.log('IDBFS persistence survived page reload');
 
   ws.close();
 }
