@@ -1,0 +1,111 @@
+const fs = require('fs');
+
+const endpoint = 'http://127.0.0.1:9222/json/list';
+const targetUrl = 'http://127.0.0.1:8765/index.html';
+const deadline = Date.now() + 60000;
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function findTarget() {
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(endpoint);
+      const targets = await response.json();
+      const target = targets.find(item => item.type === 'page' && item.url.startsWith(targetUrl));
+      if (target && target.webSocketDebuggerUrl) return target;
+    } catch (_) {}
+    await sleep(200);
+  }
+  throw new Error('Timed out waiting for Chromium DevTools target');
+}
+
+async function connectCdp(url) {
+  return new Promise((resolve, reject) => {
+    const ws = new WebSocket(url);
+    ws.onopen = () => resolve(ws);
+    ws.onerror = event => reject(new Error('CDP WebSocket connection failed: ' + event.type));
+  });
+}
+
+async function main() {
+  const target = await findTarget();
+  const ws = await connectCdp(target.webSocketDebuggerUrl);
+  let nextId = 1;
+  const pending = new Map();
+
+  ws.onmessage = event => {
+    const message = JSON.parse(event.data);
+    if (message.id && pending.has(message.id)) {
+      const entry = pending.get(message.id);
+      pending.delete(message.id);
+      if (message.error) entry.reject(new Error(JSON.stringify(message.error)));
+      else entry.resolve(message.result || {});
+      return;
+    }
+
+    if (message.method === 'Runtime.consoleAPICalled') {
+      const args = (message.params.args || []).map(arg => arg.value ?? arg.description ?? '').join(' ');
+      console.log('[browser console]', args);
+    }
+  };
+
+  function send(method, params = {}) {
+    return new Promise((resolve, reject) => {
+      const id = nextId++;
+      pending.set(id, { resolve, reject });
+      ws.send(JSON.stringify({ id, method, params }));
+    });
+  }
+
+  await send('Runtime.enable');
+  await send('Page.enable');
+
+  let markers = {};
+  while (Date.now() < deadline) {
+    const result = await send('Runtime.evaluate', {
+      expression: `(() => {
+        const e = document.documentElement;
+        return {
+          prerun: e.getAttribute('data-starfighter-prerun'),
+          idbfsReady: e.getAttribute('data-starfighter-idbfs-ready'),
+          idbfsTimeout: e.getAttribute('data-starfighter-idbfs-timeout'),
+          runtime: e.getAttribute('data-starfighter-runtime-initialized'),
+          title: e.getAttribute('data-starfighter-title-ready'),
+          firstFrame: e.getAttribute('data-starfighter-first-frame'),
+          platformReady: e.getAttribute('data-starfighter-platform-ready')
+        };
+      })()`,
+      returnByValue: true
+    });
+
+    markers = result.result?.value || {};
+    if (markers.firstFrame === '1' && markers.title === '1' && markers.runtime === '1') break;
+    await sleep(250);
+  }
+
+  console.log('Runtime markers:', JSON.stringify(markers));
+  if (!(markers.runtime === '1' && markers.title === '1' && markers.firstFrame === '1')) {
+    throw new Error('Starfighter did not reach the first rendered frame before timeout');
+  }
+
+  const dom = await send('Runtime.evaluate', {
+    expression: 'document.documentElement.outerHTML',
+    returnByValue: true
+  });
+  fs.writeFileSync('dist/runtime-dom.html', dom.result.value || '');
+
+  const screenshot = await send('Page.captureScreenshot', {
+    format: 'png',
+    captureBeyondViewport: false
+  });
+  fs.writeFileSync('dist/runtime-smoke.png', Buffer.from(screenshot.data, 'base64'));
+
+  ws.close();
+}
+
+main().catch(error => {
+  console.error(error.stack || error);
+  process.exit(1);
+});
