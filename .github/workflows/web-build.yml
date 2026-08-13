@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 env:
-  EM_CACHE: ${{ runner.temp }}/emscripten-cache
+  EM_CACHE: /tmp/emscripten-cache
 
 jobs:
   build-web:
