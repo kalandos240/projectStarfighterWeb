@@ -49,7 +49,7 @@ jobs:
           mkdir -p dist
           emcc upstream/src/*.c \
             -Iupstream/src \
-            -DVERSION='"web-dev"' \
+            -DVERSION='"2.5-web1"' \
             -DDATADIR='"/"' \
             -DNOFONT \
             -O2 \
