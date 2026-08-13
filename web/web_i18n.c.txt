@@ -129,6 +129,25 @@ static const WebTranslation webTranslations[] = {
     {"+++ CURRENT MISSIONS +++", "+++ ТЕКУЩИЕ МИССИИ +++"},
     {"click for info", "нажмите для информации"},
 
+    {"Hey, boy! You still owe me money for the Firefly I stole for you! But instead, I want you to go to the WEAPCO training ground and destroy all the craft there.", "Эй, парень! Ты всё ещё должен мне за Firefly, который я для тебя угнал! Но вместо денег я хочу, чтобы ты отправился на учебный полигон WEAPCO и уничтожил все корабли там."},
+    {"Oh? That's the job I contracted you to do, was it not?", "Разве не для этого я тебя и нанял?"},
+    {"I know, but this way we can resolve your debt right now. Do this job, and also collect $500, and we will call it quits. And if you die... well, I guess the ship was not worth stealing! HA HA HA!", "Знаю, но так мы можем закрыть твой долг прямо сейчас. Выполни работу, собери ещё $500 — и мы в расчёте. А если погибнешь... что ж, значит, корабль не стоило угонять! ХА-ХА-ХА!"},
+    {"As usual, you take me too lightly, Krass.", "Как обычно, ты меня недооцениваешь, Красс."},
+    {"Hey, Sid, what's up?", "Эй, Сид, что случилось?"},
+    {"Chris, I've intercepted a communication from WEAPCO. Seems they're transporting some medical supplies around Ceradse. We need to get hold of those pods to save some lives!", "Крис, я перехватил сообщение WEAPCO. Похоже, они перевозят медикаменты возле Ceradse. Нам нужно заполучить эти контейнеры, чтобы спасти людей!"},
+    {"How many do we need?", "Сколько нам нужно?"},
+    {"All six, Chris! If you lose even a single one, thousands of people could perish in Spirit within the next few months.", "Все шесть, Крис! Если потеряешь хотя бы один, в ближайшие месяцы в Spirit могут погибнуть тысячи людей."},
+    {"Wow! Missile boats?", "Ого! Ракетные корабли?"},
+    {"Yup. Looks like WEAPCO is starting to take notice of your actions.", "Ага. Похоже, WEAPCO начинает замечать твои действия."},
+    {"Awesome! This will really put the Firefly's fighting ability to the test!", "Отлично! Вот теперь боевые возможности Firefly будут испытаны по-настоящему!"},
+    {"Please be careful, Chris. A single missile boat carries enough rockets to level most major cities. Try not to face them head-on, and keep your distance.", "Осторожнее, Крис. На одном ракетном корабле достаточно ракет, чтобы сравнять с землёй большинство крупных городов. Не атакуй их в лоб и держи дистанцию."},
+    {"We're going to have to get rid of the mine deployment unit around Joldar. The minefield is stopping interplanetary traffic.", "Нужно уничтожить постановщик мин возле Joldar. Минное поле блокирует межпланетное движение."},
+    {"Are any fighters around to keep me entertained?", "А истребители там есть, чтобы мне не было скучно?"},
+    {"Not at the moment, but that doesn't mean they won't turn up. Be very careful of those mines! They'll only explode when they encounter a ship that's not transmitting a WEAPCO signal. Shoot them down if they get in your way.", "Сейчас нет, но это не значит, что они не появятся. И очень осторожно с минами! Они взрываются только рядом с кораблём, который не передаёт сигнал WEAPCO. Если мешают — расстреливай."},
+    {"We've got a major problem here! WEAPCO has decided to stop our resistance by destroying Spirit! The explosion will incinerate everything in the system! You've got to destroy that frigate before it gets in range!", "У нас серьёзная проблема! WEAPCO решила покончить с нашим сопротивлением, уничтожив Spirit! Взрыв испепелит всё в системе! Ты должен уничтожить этот фрегат, пока он не вошёл в зону поражения!"},
+    {"Damn! I'll get right on it, then!", "Чёрт! Тогда я вылетаю!"},
+    {"We're all counting on you, Chris! But remember, they didn't call that thing \"Star Killer\" just because it sounded nice!", "Мы все рассчитываем на тебя, Крис! И помни: эту штуку назвали «Убийцей звёзд» не просто потому, что звучит красиво!"},
+
     {NULL, NULL}
 };
 
