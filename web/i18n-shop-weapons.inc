@@ -1,0 +1,7 @@
+    {"Launches two rockets at once", "Выпускает две ракеты одновременно"},
+    {"Launches several less powerful rockets at once", "Выпускает несколько менее мощных ракет одновременно"},
+    {"Fires a continuous stream of energy particles", "Выпускает непрерывный поток энергетических частиц"},
+    {"Fires homing missile (max %i missiles)", "Запускает самонаводящуюся ракету (макс. %i ракет)"},
+    {"Compacts plasma into clusters for greater damage", "Сжимает плазму в сгустки для увеличения урона"},
+    {"Fires two homing missiles (max %i missiles)", "Запускает две самонаводящиеся ракеты (макс. %i ракет)"},
+    {"Fires several small homing missiles (max %i missiles)", "Запускает несколько малых самонаводящихся ракет (макс. %i ракет)"},
