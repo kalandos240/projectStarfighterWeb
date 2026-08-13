@@ -1,0 +1,5 @@
+    {"We're nearly ready to make the jump to Eyananth.", "Мы почти готовы к прыжку в Eyananth."},
+    {"Aren't there a lot of WEAPCO slaves in this system?", "Разве в этой системе не очень много рабов WEAPCO?"},
+    {"Yes. It's got one of the highest mortality rates in the galaxy.", "Да. У этой системы один из самых высоких уровней смертности в галактике."},
+    {"You think we can use that to our advantage?", "Думаешь, мы можем использовать это в своих интересах?"},
+    {"I think so. I'll come up with a plan of action.", "Думаю, да. Я подготовлю план действий."},
