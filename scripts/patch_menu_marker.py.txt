@@ -18,6 +18,20 @@ if new not in source:
     if old not in source:
         raise SystemExit('title menu marker not found')
     source = source.replace(old, new, 1)
+
+difficulty_old = '''\t\t\t\t\t\t\tmenuType = MENU_DIFFICULTY;
+\t\t\t\t\t\t\tselectedOption = 1;
+'''
+difficulty_new = '''\t\t\t\t\t\t\tmenuType = MENU_DIFFICULTY;
+\t\t\t\t\t\t\tselectedOption = 1;
+#ifdef __EMSCRIPTEN__
+\t\t\t\t\t\t\tEM_ASM({ document.documentElement.setAttribute('data-starfighter-difficulty-ready', '1'); });
+#endif
+'''
+if difficulty_new not in source:
+    if difficulty_old not in source:
+        raise SystemExit('difficulty menu marker not found')
+    source = source.replace(difficulty_old, difficulty_new, 1)
 path.write_text(source)
 
 gfx_path = Path('upstream/src/gfx.c')
