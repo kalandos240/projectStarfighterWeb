@@ -1,0 +1,6 @@
+    {"While escaping with his newly acquired Firefly, Chris Bainfield is intercepted by a WEAPCO patrol...", "Улетая на недавно полученном Firefly, Крис Бейнфилд сталкивается с патрулём WEAPCO..."},
+    {"Damn, these things are persistent! Human pilots would have given up by now!", "Чёрт, да они не отстают! Пилоты-люди уже давно бы сдались!"},
+    {"Looks like I'm stuck with some robo-passengers, eh, Sid?", "Похоже, у меня появились робопассажиры, да, Сид?"},
+    {"Chris, this is serious! You're getting too close to your rendezvous point. If you don't shake them soon, everything could be over before it begins!", "Крис, всё серьёзно! Ты уже слишком близко к месту встречи. Если скоро от них не оторвёшься, всё может закончиться, ещё не начавшись!"},
+    {"I know you're not familiar with the Firefly's controls, but you're going to have to fight them.", "Знаю, ты ещё не освоился с управлением Firefly, но придётся вступить с ними в бой."},
+    {"Hell yeah, now you're talking! Let's see what this ship can do!", "Вот это другое дело! Посмотрим, на что способен этот корабль!"},
