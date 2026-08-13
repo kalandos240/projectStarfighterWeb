@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+env:
+  EM_CACHE: ${{ runner.temp }}/emscripten-cache
+
 jobs:
   build-web:
     runs-on: ubuntu-latest
