@@ -1,0 +1,176 @@
+from pathlib import Path
+
+path = Path('upstream/src/gfx.c')
+source = path.read_text()
+
+old_include = '''#ifndef NOFONT
+
+// Undef MIN and MAX since pango-break.h includes these macros
+// (avoids compiler warnings)
+#ifdef MIN
+#undef MIN
+#endif
+
+#ifdef MAX
+#undef MAX
+#endif
+
+#include "SDL_ttf.h"
+#include <pango/pango-break.h>
+
+#endif
+'''
+new_include = '''#ifndef NOFONT
+#include "SDL_ttf.h"
+#endif
+'''
+if old_include not in source:
+    raise SystemExit('Pango include block not found in gfx.c')
+source = source.replace(old_include, new_include, 1)
+
+start_marker = 'int gfx_renderUnicodeBase(const char *in, int x, int y, int real_x, int fontColor, int wrap, SDL_Surface *dest)\n{'
+end_marker = '\nint gfx_renderUnicode(const char *in, int x, int y, int fontColor, int wrap, SDL_Surface *dest)\n{'
+start = source.find(start_marker)
+end = source.find(end_marker, start)
+if start == -1 or end == -1:
+    raise SystemExit('Unicode renderer markers not found in gfx.c')
+
+replacement = r'''int gfx_renderUnicodeBase(const char *in, int x, int y, int real_x, int fontColor, int wrap, SDL_Surface *dest)
+{
+	SDL_Surface *textSurf;
+	SDL_Color color;
+	SDL_Rect area;
+	int w, h;
+	int avail_w;
+	char remainingStr[STRMAX];
+	char line[STRMAX];
+	char word[STRMAX];
+	char candidate[STRMAX];
+	char *cursor;
+
+	if (strcmp(in, "") == 0)
+		return y;
+
+	if (gfx_unicodeFont == NULL)
+	{
+		engine_warn("gfx_unicodeFont is NULL!");
+		return y;
+	}
+
+	color.r = 255;
+	color.g = 255;
+	color.b = 255;
+	color.a = 255;
+
+	switch (fontColor)
+	{
+		case FONT_RED:
+			color.g = 0;
+			color.b = 0;
+			break;
+		case FONT_YELLOW:
+			color.b = 0;
+			break;
+		case FONT_GREEN:
+			color.r = 0;
+			color.b = 0;
+			break;
+		case FONT_CYAN:
+			color.r = 0;
+			break;
+		case FONT_OUTLINE:
+			color.r = 0;
+			color.g = 0;
+			color.b = 10;
+			break;
+		default:
+			break;
+	}
+
+	avail_w = dest->w - real_x;
+	strncpy(remainingStr, in, sizeof(remainingStr) - 1);
+	remainingStr[sizeof(remainingStr) - 1] = '\0';
+	cursor = remainingStr;
+
+	while (*cursor != '\0')
+	{
+		line[0] = '\0';
+
+		while ((*cursor != '\0') && (*cursor != '\n'))
+		{
+			char *wordStart;
+			size_t wordLen;
+
+			while (*cursor == ' ')
+				cursor++;
+
+			if ((*cursor == '\0') || (*cursor == '\n'))
+				break;
+
+			wordStart = cursor;
+			while ((*cursor != '\0') && (*cursor != ' ') && (*cursor != '\n'))
+				cursor++;
+
+			wordLen = (size_t)(cursor - wordStart);
+			if (wordLen >= sizeof(word))
+				wordLen = sizeof(word) - 1;
+			memcpy(word, wordStart, wordLen);
+			word[wordLen] = '\0';
+
+			if (line[0] != '\0')
+				snprintf(candidate, sizeof(candidate), "%s %s", line, word);
+			else
+				snprintf(candidate, sizeof(candidate), "%s", word);
+
+			if (TTF_SizeUTF8(gfx_unicodeFont, candidate, &w, &h) < 0)
+				engine_error(TTF_GetError());
+
+			if (wrap && (line[0] != '\0') && (w > avail_w))
+			{
+				textSurf = TTF_RenderUTF8_Blended(gfx_unicodeFont, line, color);
+				if (textSurf == NULL)
+					engine_error("Attempted to render UTF8, got null surface!");
+
+				area.x = x;
+				area.y = y;
+				area.w = textSurf->w;
+				area.h = textSurf->h;
+				if (SDL_BlitSurface(textSurf, NULL, dest, &area) < 0)
+					engine_showError(2, "");
+				SDL_FreeSurface(textSurf);
+				y += TTF_FontHeight(gfx_unicodeFont) + 1;
+
+				snprintf(line, sizeof(line), "%s", word);
+			}
+			else
+			{
+				snprintf(line, sizeof(line), "%s", candidate);
+			}
+		}
+
+		if (line[0] != '\0')
+		{
+			textSurf = TTF_RenderUTF8_Blended(gfx_unicodeFont, line, color);
+			if (textSurf == NULL)
+				engine_error("Attempted to render UTF8, got null surface!");
+
+			area.x = x;
+			area.y = y;
+			area.w = textSurf->w;
+			area.h = textSurf->h;
+			if (SDL_BlitSurface(textSurf, NULL, dest, &area) < 0)
+				engine_showError(2, "");
+			SDL_FreeSurface(textSurf);
+		}
+
+		y += TTF_FontHeight(gfx_unicodeFont) + 1;
+		if (*cursor == '\n')
+			cursor++;
+	}
+
+	return y;
+}
+'''
+
+source = source[:start] + replacement + source[end:]
+path.write_text(source)
