@@ -37,6 +37,7 @@ jobs:
 
       - name: Build first browser target
         run: |
+          source emsdk/emsdk_env.sh
           mkdir -p dist
           emcc upstream/src/*.c \
             -Iupstream/src \
