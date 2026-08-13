@@ -1,0 +1,30 @@
+from pathlib import Path
+
+path = Path('upstream/src/title.c')
+source = path.read_text()
+old = '''\tscreen_blitText(TS_QUIT, -1, MENU_Y + 5 * MENU_SPACING);
+
+\tif (engine.cheat)
+\t\treturn 7;
+
+\treturn 6;
+'''
+new = '''#ifndef __EMSCRIPTEN__
+\tscreen_blitText(TS_QUIT, -1, MENU_Y + 5 * MENU_SPACING);
+
+\tif (engine.cheat)
+\t\treturn 7;
+
+\treturn 6;
+#else
+\tif (engine.cheat)
+\t\treturn 6;
+
+\treturn 5;
+#endif
+'''
+if new not in source:
+    if old not in source:
+        raise SystemExit('main-menu quit marker not found')
+    source = source.replace(old, new, 1)
+path.write_text(source)
