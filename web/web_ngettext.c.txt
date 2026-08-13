@@ -1,8 +1,36 @@
 #include <stddef.h>
+#include <string.h>
 
 const char *starfighter_web_gettext(const char *source);
+int starfighter_web_is_russian(void);
+
+static int starfighter_starts_with(const char *value, const char *prefix)
+{
+    if ((value == NULL) || (prefix == NULL))
+        return 0;
+    return strncmp(value, prefix, strlen(prefix)) == 0;
+}
 
 const char *starfighter_web_ngettext(const char *singular, const char *plural, unsigned long n)
 {
-    return starfighter_web_gettext((n == 1) ? singular : plural);
+    const char *source = (n == 1) ? singular : plural;
+    const char *translated = starfighter_web_gettext(source);
+
+    if (translated != source)
+        return translated;
+    if (!starfighter_web_is_russian())
+        return source;
+
+    if ((singular != NULL) && strcmp(singular, "Got $%d") == 0)
+        return "Получено: $%d";
+    if ((singular != NULL) && strcmp(singular, "Got %d rocket") == 0)
+        return "Получено ракет: %d";
+    if (starfighter_starts_with(singular, "Collect $%d more"))
+        return "Осталось собрать: $%d...";
+    if (starfighter_starts_with(singular, "Collect %d more cargo pod"))
+        return "Осталось контейнеров: %d...";
+    if (starfighter_starts_with(singular, "Collect %d more piece of ore"))
+        return "Осталось руды: %d...";
+
+    return source;
 }
