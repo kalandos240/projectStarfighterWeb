@@ -1,0 +1,71 @@
+globalThis.starfighterPlatformPaused = false;
+globalThis.starfighterLoadingReadySent = false;
+globalThis.starfighterYsdk = null;
+
+globalThis.starfighterPlatformReady = function () {
+  document.documentElement.setAttribute('data-starfighter-platform-ready', '1');
+  if (globalThis.starfighterLoadingReadySent) return;
+  globalThis.starfighterLoadingReadySent = true;
+  var sdk = globalThis.starfighterYsdk;
+  if (sdk && sdk.features && sdk.features.LoadingAPI) sdk.features.LoadingAPI.ready();
+};
+
+Module['preRun'] = Module['preRun'] || [];
+Module['preRun'].push(function () {
+  document.documentElement.setAttribute('data-starfighter-prerun', '1');
+
+  var savePath = '/home/web_user/.config/starfighter';
+  FS.mkdirTree(savePath);
+  FS.mount(IDBFS, { autoPersist: true }, savePath);
+
+  var dependencyReleased = false;
+  addRunDependency('starfighter-idbfs');
+
+  function releaseIdbfs(err, timedOut) {
+    if (dependencyReleased) return;
+    dependencyReleased = true;
+
+    if (err) {
+      document.documentElement.setAttribute('data-starfighter-idbfs-error', '1');
+      console.error('IDBFS initial sync failed:', err);
+    }
+    if (timedOut) {
+      document.documentElement.setAttribute('data-starfighter-idbfs-timeout', '1');
+      console.warn('IDBFS initial sync timed out; continuing startup with mounted storage.');
+    }
+
+    document.documentElement.setAttribute('data-starfighter-idbfs-ready', '1');
+    removeRunDependency('starfighter-idbfs');
+  }
+
+  FS.syncfs(true, function (err) {
+    releaseIdbfs(err, false);
+  });
+
+  setTimeout(function () {
+    releaseIdbfs(null, true);
+  }, 3000);
+});
+
+Module['onRuntimeInitialized'] = function () {
+  document.documentElement.setAttribute('data-starfighter-runtime-initialized', '1');
+
+  if (typeof YaGames !== 'undefined') {
+    YaGames.init().then(function (sdk) {
+      globalThis.starfighterYsdk = sdk;
+
+      sdk.on('game_api_pause', function () {
+        globalThis.starfighterPlatformPaused = true;
+      });
+      sdk.on('game_api_resume', function () {
+        globalThis.starfighterPlatformPaused = false;
+      });
+
+      if (globalThis.starfighterLoadingReadySent && sdk.features && sdk.features.LoadingAPI) {
+        sdk.features.LoadingAPI.ready();
+      }
+    }).catch(function (err) {
+      console.warn('Yandex Games SDK initialization failed:', err);
+    });
+  }
+};
