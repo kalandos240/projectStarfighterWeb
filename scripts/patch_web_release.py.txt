@@ -1,0 +1,232 @@
+from pathlib import Path
+
+
+def add_emscripten_include(path):
+    source = path.read_text()
+    old = '#include "SDL.h"\n'
+    new = '#include "SDL.h"\n\n#ifdef __EMSCRIPTEN__\n#include <emscripten.h>\n#endif\n'
+    if new not in source:
+        if old not in source:
+            raise SystemExit(f'SDL include marker not found in {path}')
+        source = source.replace(old, new, 1)
+    path.write_text(source)
+
+
+# Central Yandex platform pause/resume hook.
+game_path = Path('upstream/src/game.c')
+add_emscripten_include(game_path)
+source = game_path.read_text()
+old = '''void game_delayFrame()
+{
+\tUint32 now = SDL_GetTicks();
+
+\t// Add 16 2/3 (= 1000 / 60) to frameLimit
+\tframeLimit += 16;
+\tthirds += 2;
+\twhile (thirds >= 3)
+\t{
+\t\tthirds -= 3;
+\t\tframeLimit++;
+\t}
+
+\tif(now < frameLimit)
+\t\tSDL_Delay(frameLimit - now);
+\telse
+\t\tframeLimit = now;
+}
+'''
+new = '''void game_delayFrame()
+{
+#ifdef __EMSCRIPTEN__
+\tif (EM_ASM_INT({ return globalThis.starfighterPlatformPaused ? 1 : 0; }))
+\t{
+#ifndef NOSOUND
+\t\tint resumeMusic = Mix_PlayingMusic() && !Mix_PausedMusic();
+\t\tif (resumeMusic)
+\t\t\tMix_PauseMusic();
+\t\tMix_Pause(-1);
+#endif
+
+\t\twhile (EM_ASM_INT({ return globalThis.starfighterPlatformPaused ? 1 : 0; }))
+\t\t\tSDL_Delay(50);
+
+#ifndef NOSOUND
+\t\tif (resumeMusic)
+\t\t\tMix_ResumeMusic();
+\t\tMix_Resume(-1);
+#endif
+\t\tframeLimit = SDL_GetTicks();
+\t}
+#endif
+
+\tUint32 now = SDL_GetTicks();
+
+\t// Add 16 2/3 (= 1000 / 60) to frameLimit
+\tframeLimit += 16;
+\tthirds += 2;
+\twhile (thirds >= 3)
+\t{
+\t\tthirds -= 3;
+\t\tframeLimit++;
+\t}
+
+\tif(now < frameLimit)
+\t\tSDL_Delay(frameLimit - now);
+\telse
+\t\tframeLimit = now;
+}
+'''
+if new not in source:
+    if old not in source:
+        raise SystemExit('game_delayFrame marker not found')
+    source = source.replace(old, new, 1)
+
+# Native pause menu should stop/start gameplay marking.
+pause_old = '''\t\t\tgfx_createTextObject(TS_PAUSED, _("PAUSED"), 0, 0, FONT_WHITE);
+\t\t\taudio_pauseMusic();
+
+\t\t\twhile (engine.paused)
+\t\t\t{
+\t\t\t\tscreen_blitText(TS_PAUSED, -1, screen->h / 2);
+\t\t\t\trenderer_update();
+\t\t\t\tengine.done = game_checkPauseRequest();
+\t\t\t\tgame_delayFrame();
+\t\t\t}
+
+\t\t\tif (engine.done == ENGINE_RUNNING)
+\t\t\t\taudio_resumeMusic();
+'''
+pause_new = '''\t\t\tgfx_createTextObject(TS_PAUSED, _("PAUSED"), 0, 0, FONT_WHITE);
+\t\t\taudio_pauseMusic();
+#ifdef __EMSCRIPTEN__
+\t\t\tEM_ASM({ if (globalThis.starfighterGameplayStop) globalThis.starfighterGameplayStop(); });
+#endif
+
+\t\t\twhile (engine.paused)
+\t\t\t{
+\t\t\t\tscreen_blitText(TS_PAUSED, -1, screen->h / 2);
+\t\t\t\trenderer_update();
+\t\t\t\tengine.done = game_checkPauseRequest();
+\t\t\t\tgame_delayFrame();
+\t\t\t}
+
+\t\t\tif (engine.done == ENGINE_RUNNING)
+\t\t\t{
+\t\t\t\taudio_resumeMusic();
+#ifdef __EMSCRIPTEN__
+\t\t\t\tEM_ASM({ if (globalThis.starfighterGameplayStart) globalThis.starfighterGameplayStart(); });
+#endif
+\t\t\t}
+'''
+if pause_new not in source:
+    if pause_old not in source:
+        raise SystemExit('native pause marker not found')
+    source = source.replace(pause_old, pause_new, 1)
+game_path.write_text(source)
+
+
+# LoadingAPI marker only after title setup + runtime smoke markers.
+title_path = Path('upstream/src/title.c')
+add_emscripten_include(title_path)
+source = title_path.read_text()
+old = '''#ifdef OLD_MUSIC
+\taudio_playMusic("music/Platinum.mod", 1);
+#else
+\taudio_playMusic("music/android_oppression.ogg", 1);
+#endif
+
+\twhile (!engine.done)
+'''
+new = '''#ifdef OLD_MUSIC
+\taudio_playMusic("music/Platinum.mod", 1);
+#else
+\taudio_playMusic("music/android_oppression.ogg", 1);
+#endif
+
+#ifdef __EMSCRIPTEN__
+\tEM_ASM({
+\t\tdocument.documentElement.setAttribute('data-starfighter-title-ready', '1');
+\t\tif (globalThis.starfighterPlatformReady)
+\t\t\tglobalThis.starfighterPlatformReady();
+\t});
+#endif
+
+\twhile (!engine.done)
+'''
+if new not in source:
+    if old not in source:
+        raise SystemExit('title ready marker not found')
+    source = source.replace(old, new, 1)
+
+frame_old = '''\twhile (!engine.done)
+\t{
+\t\trenderer_update();
+'''
+frame_new = '''\twhile (!engine.done)
+\t{
+\t\trenderer_update();
+#ifdef __EMSCRIPTEN__
+\t\tEM_ASM({ document.documentElement.setAttribute('data-starfighter-first-frame', '1'); });
+#endif
+'''
+if frame_new not in source:
+    if frame_old not in source:
+        raise SystemExit('title first-frame marker not found')
+    source = source.replace(frame_old, frame_new, 1)
+title_path.write_text(source)
+
+
+# Mark actual mission gameplay, not title/intermission screens.
+main_path = Path('upstream/src/Starfighter.c')
+add_emscripten_include(main_path)
+source = main_path.read_text()
+mission_old = '''\t\t\tcase 2:
+\t\t\t\tif (game.stationedPlanet == -1)
+\t\t\t\t\tcutscene_init(0);
+\t\t\t\tsection = game_mainLoop();
+\t\t\t\tbreak;
+'''
+mission_new = '''\t\t\tcase 2:
+\t\t\t\tif (game.stationedPlanet == -1)
+\t\t\t\t\tcutscene_init(0);
+#ifdef __EMSCRIPTEN__
+\t\t\t\tEM_ASM({ if (globalThis.starfighterGameplayStart) globalThis.starfighterGameplayStart(); });
+#endif
+\t\t\t\tsection = game_mainLoop();
+#ifdef __EMSCRIPTEN__
+\t\t\t\tEM_ASM({ if (globalThis.starfighterGameplayStop) globalThis.starfighterGameplayStop(); });
+#endif
+\t\t\t\tbreak;
+'''
+if mission_new not in source:
+    if mission_old not in source:
+        raise SystemExit('mission gameplay marker not found')
+    source = source.replace(mission_old, mission_new, 1)
+main_path.write_text(source)
+
+
+# Push normal Starfighter save slots to Yandex Player Data after native saves.
+save_path = Path('upstream/src/save.c')
+add_emscripten_include(save_path)
+source = save_path.read_text()
+save_old = '''\t// Recall to update the save slots... (lazy, yes)
+\tsave_initSlots();
+\tengine.keyState[KEY_FIRE] = 0;
+}
+'''
+save_new = '''\t// Recall to update the save slots... (lazy, yes)
+\tsave_initSlots();
+\tengine.keyState[KEY_FIRE] = 0;
+#ifdef __EMSCRIPTEN__
+\tEM_ASM({
+\t\tif (globalThis.starfighterScheduleCloudPush)
+\t\t\tglobalThis.starfighterScheduleCloudPush();
+\t});
+#endif
+}
+'''
+if save_new not in source:
+    if save_old not in source:
+        raise SystemExit('save completion marker not found')
+    source = source.replace(save_old, save_new, 1)
+save_path.write_text(source)
