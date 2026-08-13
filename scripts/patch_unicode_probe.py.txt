@@ -29,7 +29,9 @@ exec(Path('scripts/patch_i18n_campaign.py.txt').read_text(), {})
 i18n_path = Path('upstream/src/web_i18n.c')
 i18n_source = i18n_path.read_text()
 i18n_marker = '    {NULL, NULL}\n};\n'
-extra = Path('web/i18n-eyananth-rescue.inc').read_text()
 if i18n_marker not in i18n_source:
     raise SystemExit('web translation sentinel not found for extra localization')
-i18n_path.write_text(i18n_source.replace(i18n_marker, extra + '\n' + i18n_marker, 1))
+extra_parts = [p.read_text() for p in sorted(Path('web').glob('i18n-*.inc'))]
+if extra_parts:
+    i18n_source = i18n_source.replace(i18n_marker, '\n'.join(extra_parts) + '\n' + i18n_marker, 1)
+i18n_path.write_text(i18n_source)
