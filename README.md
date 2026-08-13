@@ -21,6 +21,10 @@ Working and continuously tested:
 - SDL2 rendering, SDL2_image assets, SDL2_mixer music and OGG sound.
 - Original title animation and main menu in Chromium.
 - Real keyboard input through the browser into the SDL2 event path.
+- Browser-native UTF-8 text rendering with verified Cyrillic output.
+- Russian WebAssembly localization selected from Yandex/browser language, with untranslated strings falling back to upstream English.
+- Russian main menu verified visually in headless Chromium.
+- Browser-only removal of the desktop `QUIT` menu item.
 - Yandex Games SDK loading from `/sdk.js`.
 - `LoadingAPI.ready()` lifecycle integration.
 - `GameplayAPI.start()` / `GameplayAPI.stop()` around actual mission gameplay.
@@ -42,24 +46,28 @@ The current release archive is roughly **37 MiB compressed** and about **42.7 MB
 3. Installs Emscripten.
 4. Applies the browser/Yandex patches from `scripts/`.
 5. Builds the original game and runtime assets into `dist/`.
-6. Starts the build in headless Chromium and verifies the first rendered frame and keyboard navigation to the real main menu.
-7. Packages `starfighter-yandexgames.zip`.
+6. Starts the build in headless Chromium and verifies the first rendered frame, Cyrillic rendering, and keyboard navigation to the real main menu.
+7. Runs Chromium with a Russian language profile so the localized browser path is exercised in CI.
+8. Packages `starfighter-yandexgames.zip`.
 
 The resulting Yandex archive contains `index.html`, WebAssembly/runtime files, and the upstream `COPYING` and `LICENSES` notices.
 
 ## Port architecture
 
-- `web/shell.html` — Emscripten page shell and canvas integration.
+- `web/shell.html` — Emscripten page shell, canvas integration and mission-boundary interstitial helper.
 - `web/platform-pre-release.txt` — production Yandex lifecycle, storage and cloud-save bridge.
+- `web/web_i18n.c.txt` — incremental WebAssembly-only Russian localization table.
 - `scripts/patch_web_release.py.txt` — browser adaptations applied to the pinned upstream C source at build time.
-- `scripts/patch_menu_marker.py.txt` — browser QA marker and small upstream cleanups.
+- `scripts/patch_browser_text.py.txt` — Pango-free browser UTF-8/Cyrillic renderer used by the WebAssembly build.
+- `scripts/patch_menu_marker.py.txt` — web localization wiring, browser QA markers and small upstream cleanups.
+- `scripts/patch_web_menu.py.txt` — browser-only removal of the desktop quit control.
 - `scripts/patch_ads.py.txt` — mission-boundary Yandex advertisement hook.
 - `scripts/cdp-smoke.js.txt` — Chromium DevTools runtime/input smoke test.
 - `docs/` — implementation and Yandex integration notes.
 
 ## Remaining work before release
 
-- Enable the prepared Pango-free Unicode/SDL_ttf path and add a Russian localization.
+- Finish Russian translation of mission dialogue and the remaining campaign text.
 - Expand automated gameplay QA beyond the main menu into complete mission transitions.
 - Test cloud saves and advertising inside the real Yandex Games test environment.
 - Final moderation pass, metadata, screenshots, icon/cover, and release ZIP validation.
