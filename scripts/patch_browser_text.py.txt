@@ -1,0 +1,223 @@
+from pathlib import Path
+
+path = Path('upstream/src/gfx.c')
+source = path.read_text()
+
+include_old = '#include "SDL_image.h"\n'
+include_new = '#include "SDL_image.h"\n\n#ifdef __EMSCRIPTEN__\n#include <emscripten.h>\n#endif\n'
+if include_new not in source:
+    if include_old not in source:
+        raise SystemExit('SDL_image include marker not found')
+    source = source.replace(include_old, include_new, 1)
+
+old = '''#ifdef NOFONT
+int gfx_unicodeWidth(const char *in)
+{
+\treturn (PIXFONT_W + 1) * strlen(in);
+}
+
+int gfx_renderUnicode(const char *in, int x, int y, int fontColor, int wrap, SDL_Surface *dest)
+{
+\treturn gfx_renderString(in, x, y, fontColor, wrap, dest);
+}
+
+#else
+'''
+
+new = r'''#ifdef NOFONT
+#ifdef __EMSCRIPTEN__
+
+EM_JS(int, gfx_webTextWidth, (const char *text), {
+    const value = UTF8ToString(text);
+    if (!value) return 0;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.font = 'bold 13px sans-serif';
+    return Math.ceil(ctx.measureText(value).width);
+});
+
+EM_JS(uintptr_t, gfx_webRenderText, (const char *text, int maxWidth, int red, int green, int blue, int *outW, int *outH), {
+    const value = UTF8ToString(text);
+    const probe = document.createElement('canvas');
+    const ctx = probe.getContext('2d');
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textBaseline = 'top';
+
+    const lines = [];
+    const paragraphs = String(value || '').split('\n');
+    for (const paragraph of paragraphs) {
+        if (maxWidth <= 0) {
+            lines.push(paragraph);
+            continue;
+        }
+
+        const words = paragraph.trim().split(/\s+/).filter(Boolean);
+        if (words.length === 0) {
+            lines.push('');
+            continue;
+        }
+
+        let line = '';
+        for (const word of words) {
+            const candidate = line ? line + ' ' + word : word;
+            if (line && ctx.measureText(candidate).width > maxWidth) {
+                lines.push(line);
+                line = word;
+            } else {
+                line = candidate;
+            }
+        }
+        lines.push(line);
+    }
+
+    if (lines.length === 0) lines.push('');
+
+    let width = 1;
+    for (const line of lines) {
+        width = Math.max(width, Math.ceil(ctx.measureText(line).width) + 2);
+    }
+    if (maxWidth > 0) width = Math.min(width, Math.max(1, maxWidth));
+
+    const lineHeight = 16;
+    const height = Math.max(1, lines.length * lineHeight + 2);
+    probe.width = width;
+    probe.height = height;
+
+    const draw = probe.getContext('2d');
+    draw.font = 'bold 13px sans-serif';
+    draw.textBaseline = 'top';
+    draw.fillStyle = 'rgb(' + red + ',' + green + ',' + blue + ')';
+    draw.clearRect(0, 0, width, height);
+    for (let i = 0; i < lines.length; i++) {
+        draw.fillText(lines[i], 1, 1 + i * lineHeight, Math.max(1, width - 1));
+    }
+
+    const data = draw.getImageData(0, 0, width, height).data;
+    const ptr = _malloc(data.length);
+    HEAPU8.set(data, ptr);
+    HEAP32[outW >> 2] = width;
+    HEAP32[outH >> 2] = height;
+    return ptr;
+});
+
+static void gfx_webTextColor(int fontColor, Uint8 *redOut, Uint8 *greenOut, Uint8 *blueOut)
+{
+    Uint8 r = 255;
+    Uint8 g = 255;
+    Uint8 b = 255;
+
+    switch (fontColor)
+    {
+        case FONT_RED:
+            g = 0;
+            b = 0;
+            break;
+        case FONT_YELLOW:
+            b = 0;
+            break;
+        case FONT_GREEN:
+            r = 0;
+            b = 0;
+            break;
+        case FONT_CYAN:
+            r = 0;
+            break;
+        case FONT_OUTLINE:
+            r = 0;
+            g = 0;
+            b = 10;
+            break;
+        default:
+            break;
+    }
+
+    *redOut = r;
+    *greenOut = g;
+    *blueOut = b;
+}
+
+static int gfx_renderUnicodeWebBase(const char *in, int x, int y, int real_x,
+        int fontColor, int wrap, SDL_Surface *dest)
+{
+    int w = 0;
+    int h = 0;
+    int maxWidth = wrap ? MAX(1, dest->w - real_x) : 0;
+    Uint8 r, g, b;
+    Uint8 *pixels;
+    SDL_Surface *textSurf;
+    SDL_Rect area;
+
+    if (strcmp(in, "") == 0)
+        return y;
+
+    gfx_webTextColor(fontColor, &r, &g, &b);
+    pixels = (Uint8 *)gfx_webRenderText(in, maxWidth, r, g, b, &w, &h);
+    if ((pixels == NULL) || (w <= 0) || (h <= 0))
+        return y;
+
+    textSurf = SDL_CreateRGBSurfaceFrom(pixels, w, h, 32, w * 4,
+        0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
+    if (textSurf == NULL)
+    {
+        free(pixels);
+        engine_error(SDL_GetError());
+    }
+
+    SDL_SetSurfaceBlendMode(textSurf, SDL_BLENDMODE_BLEND);
+    area.x = x;
+    area.y = y;
+    area.w = w;
+    area.h = h;
+    if (SDL_BlitSurface(textSurf, NULL, dest, &area) < 0)
+        engine_showError(2, "");
+
+    SDL_FreeSurface(textSurf);
+    free(pixels);
+    return y + h;
+}
+
+int gfx_unicodeWidth(const char *in)
+{
+    return gfx_webTextWidth(in);
+}
+
+int gfx_renderUnicode(const char *in, int x, int y, int fontColor, int wrap, SDL_Surface *dest)
+{
+    int w;
+
+    if (x == -1)
+    {
+        w = gfx_unicodeWidth(in);
+        x = (dest->w - MIN(w, dest->w)) / 2;
+    }
+
+    gfx_renderUnicodeWebBase(in, x, y - 1, x, FONT_OUTLINE, wrap, dest);
+    gfx_renderUnicodeWebBase(in, x, y + 1, x, FONT_OUTLINE, wrap, dest);
+    gfx_renderUnicodeWebBase(in, x, y + 2, x, FONT_OUTLINE, wrap, dest);
+    gfx_renderUnicodeWebBase(in, x - 1, y, x, FONT_OUTLINE, wrap, dest);
+    gfx_renderUnicodeWebBase(in, x - 2, y, x, FONT_OUTLINE, wrap, dest);
+    gfx_renderUnicodeWebBase(in, x + 1, y, x, FONT_OUTLINE, wrap, dest);
+    return gfx_renderUnicodeWebBase(in, x, y, x, fontColor, wrap, dest);
+}
+
+#else
+int gfx_unicodeWidth(const char *in)
+{
+    return (PIXFONT_W + 1) * strlen(in);
+}
+
+int gfx_renderUnicode(const char *in, int x, int y, int fontColor, int wrap, SDL_Surface *dest)
+{
+    return gfx_renderString(in, x, y, fontColor, wrap, dest);
+}
+#endif
+
+#else
+'''
+
+if new not in source:
+    if old not in source:
+        raise SystemExit('NOFONT Unicode fallback marker not found')
+    source = source.replace(old, new, 1)
+
+path.write_text(source)
