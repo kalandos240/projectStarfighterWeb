@@ -21,13 +21,15 @@
     const canvas=document.getElementById('canvas');
     const loading=document.getElementById('loading');
 
-    globalThis.starfighterSessionStartedAt=Date.now();
+    globalThis.starfighterMissionStartedAt=0;
     globalThis.starfighterLastInterstitialAt=0;
     globalThis.starfighterMissionEnded=function(){
       const sdk=globalThis.starfighterYsdk;
       const now=Date.now();
+      const startedAt=globalThis.starfighterMissionStartedAt||0;
+      globalThis.starfighterMissionStartedAt=0;
       if(!sdk||!sdk.adv||typeof sdk.adv.showFullscreenAdv!=='function')return;
-      if(now-globalThis.starfighterSessionStartedAt<60000)return;
+      if(!startedAt||now-startedAt<60000)return;
       if(now-globalThis.starfighterLastInterstitialAt<120000)return;
 
       globalThis.starfighterLastInterstitialAt=now;
