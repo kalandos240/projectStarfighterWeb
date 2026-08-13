@@ -51,6 +51,7 @@ path = Path('scripts/cdp-smoke.js.txt')
 text = path.read_text()
 text = text.replace("const targetUrl = 'http://127.0.0.1:8765/index.html';", "const targetUrl = " + repr(sys.argv[1]) + ";")
 text = text.replace('45000);', '120000);')
+text = text.replace('30000);', '90000);')
 Path('/tmp/cdp-smoke.js').write_text(text)
 PY
 node /tmp/cdp-smoke.js
