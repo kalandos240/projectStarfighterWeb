@@ -71,23 +71,42 @@ async function main() {
           prerun: e.getAttribute('data-starfighter-prerun'),
           idbfsReady: e.getAttribute('data-starfighter-idbfs-ready'),
           idbfsTimeout: e.getAttribute('data-starfighter-idbfs-timeout'),
+          storageReady: e.getAttribute('data-starfighter-storage-ready'),
           runtime: e.getAttribute('data-starfighter-runtime-initialized'),
           title: e.getAttribute('data-starfighter-title-ready'),
           firstFrame: e.getAttribute('data-starfighter-first-frame'),
-          platformReady: e.getAttribute('data-starfighter-platform-ready')
+          platformReady: e.getAttribute('data-starfighter-platform-ready'),
+          yandexSdk: e.getAttribute('data-yandex-sdk-init'),
+          yandexPlayer: e.getAttribute('data-yandex-player-ready'),
+          yandexGetData: e.getAttribute('data-yandex-get-data'),
+          yandexLoadingReady: e.getAttribute('data-yandex-loading-ready')
         };
       })()`,
       returnByValue: true
     });
 
     markers = result.result?.value || {};
-    if (markers.firstFrame === '1' && markers.title === '1' && markers.runtime === '1') break;
+    if (
+      markers.firstFrame === '1' &&
+      markers.title === '1' &&
+      markers.runtime === '1' &&
+      markers.yandexSdk === '1' &&
+      markers.yandexPlayer === '1' &&
+      markers.yandexGetData === '1' &&
+      markers.yandexLoadingReady === '1'
+    ) break;
     await sleep(250);
   }
 
   console.log('Runtime markers:', JSON.stringify(markers));
   if (!(markers.runtime === '1' && markers.title === '1' && markers.firstFrame === '1')) {
     throw new Error('Starfighter did not reach the first rendered frame before timeout');
+  }
+  if (!(markers.yandexSdk === '1' && markers.yandexPlayer === '1' && markers.yandexGetData === '1')) {
+    throw new Error('Yandex Player Data bootstrap did not complete before timeout');
+  }
+  if (markers.yandexLoadingReady !== '1') {
+    throw new Error('Yandex LoadingAPI.ready() was not called after the title became interactive');
   }
 
   const dom = await send('Runtime.evaluate', {
