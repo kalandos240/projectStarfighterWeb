@@ -1,0 +1,246 @@
+globalThis.starfighterPlatformPaused = false;
+globalThis.starfighterLoadingReadySent = false;
+globalThis.starfighterYsdk = null;
+globalThis.starfighterPlayer = null;
+globalThis.starfighterGameplayDesired = false;
+globalThis.starfighterGameplayReported = false;
+
+const STARFIGHTER_SAVE_DIR = '/home/web_user/.config/starfighter';
+const STARFIGHTER_CLOUD_KEY = 'starfighterCloudSaveV1';
+const STARFIGHTER_META_FILE = '.webmeta.json';
+const STARFIGHTER_SAVE_FILES = [
+  'save00.sav', 'save01.sav', 'save02.sav',
+  'save03.sav', 'save04.sav', 'save05.sav', 'conf'
+];
+
+function starfighterSleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function starfighterFileExists(path) {
+  try {
+    return FS.analyzePath(path).exists;
+  } catch (_) {
+    return false;
+  }
+}
+
+function starfighterReadLocalTimestamp() {
+  const metaPath = STARFIGHTER_SAVE_DIR + '/' + STARFIGHTER_META_FILE;
+  try {
+    if (starfighterFileExists(metaPath)) {
+      const meta = JSON.parse(FS.readFile(metaPath, { encoding: 'utf8' }));
+      if (Number.isFinite(meta.updatedAt)) return meta.updatedAt;
+    }
+  } catch (err) {
+    console.warn('Could not read Starfighter web metadata:', err);
+  }
+
+  let newest = 0;
+  for (const name of STARFIGHTER_SAVE_FILES) {
+    const path = STARFIGHTER_SAVE_DIR + '/' + name;
+    try {
+      if (!starfighterFileExists(path)) continue;
+      const stat = FS.stat(path);
+      const value = stat.mtime instanceof Date ? stat.mtime.getTime() : new Date(stat.mtime).getTime();
+      if (Number.isFinite(value)) newest = Math.max(newest, value);
+    } catch (_) {}
+  }
+  return newest;
+}
+
+function starfighterCollectSaveFiles() {
+  const files = {};
+  for (const name of STARFIGHTER_SAVE_FILES) {
+    const path = STARFIGHTER_SAVE_DIR + '/' + name;
+    try {
+      if (starfighterFileExists(path)) {
+        files[name] = FS.readFile(path, { encoding: 'utf8' });
+      }
+    } catch (err) {
+      console.warn('Could not read save file for cloud upload:', name, err);
+    }
+  }
+  return files;
+}
+
+function starfighterWriteMetadata(updatedAt) {
+  try {
+    FS.writeFile(
+      STARFIGHTER_SAVE_DIR + '/' + STARFIGHTER_META_FILE,
+      JSON.stringify({ updatedAt: updatedAt })
+    );
+  } catch (err) {
+    console.warn('Could not write Starfighter web metadata:', err);
+  }
+}
+
+function starfighterApplyGameplayState() {
+  const sdk = globalThis.starfighterYsdk;
+  const gameplay = sdk && sdk.features && sdk.features.GameplayAPI;
+  if (!gameplay) return;
+  if (globalThis.starfighterGameplayDesired === globalThis.starfighterGameplayReported) return;
+
+  if (globalThis.starfighterGameplayDesired) gameplay.start();
+  else gameplay.stop();
+  globalThis.starfighterGameplayReported = globalThis.starfighterGameplayDesired;
+}
+
+globalThis.starfighterGameplayStart = function () {
+  globalThis.starfighterGameplayDesired = true;
+  starfighterApplyGameplayState();
+};
+
+globalThis.starfighterGameplayStop = function () {
+  globalThis.starfighterGameplayDesired = false;
+  starfighterApplyGameplayState();
+};
+
+globalThis.starfighterPlatformReady = function () {
+  document.documentElement.setAttribute('data-starfighter-platform-ready', '1');
+  if (globalThis.starfighterLoadingReadySent) return;
+  globalThis.starfighterLoadingReadySent = true;
+
+  const sdk = globalThis.starfighterYsdk;
+  if (sdk && sdk.features && sdk.features.LoadingAPI) {
+    sdk.features.LoadingAPI.ready();
+  }
+};
+
+globalThis.starfighterSdkPromise = (typeof YaGames !== 'undefined')
+  ? YaGames.init().then(async function (sdk) {
+      globalThis.starfighterYsdk = sdk;
+
+      sdk.on('game_api_pause', function () {
+        globalThis.starfighterPlatformPaused = true;
+      });
+      sdk.on('game_api_resume', function () {
+        globalThis.starfighterPlatformPaused = false;
+      });
+
+      if (globalThis.starfighterLoadingReadySent && sdk.features && sdk.features.LoadingAPI) {
+        sdk.features.LoadingAPI.ready();
+      }
+      starfighterApplyGameplayState();
+
+      try {
+        globalThis.starfighterPlayer = await sdk.getPlayer();
+      } catch (err) {
+        console.warn('Yandex Player initialization failed:', err);
+      }
+
+      return sdk;
+    }).catch(function (err) {
+      console.warn('Yandex Games SDK initialization failed:', err);
+      return null;
+    })
+  : Promise.resolve(null);
+
+async function starfighterRestoreCloudSave() {
+  const sdk = await globalThis.starfighterSdkPromise;
+  if (!sdk || !globalThis.starfighterPlayer) return;
+
+  let data;
+  try {
+    data = await globalThis.starfighterPlayer.getData([STARFIGHTER_CLOUD_KEY]);
+  } catch (err) {
+    console.warn('Could not load Starfighter cloud save:', err);
+    return;
+  }
+
+  const cloud = data && data[STARFIGHTER_CLOUD_KEY];
+  if (!cloud || cloud.version !== 1 || !cloud.files || !Number.isFinite(cloud.updatedAt)) return;
+
+  const localUpdatedAt = starfighterReadLocalTimestamp();
+  if (localUpdatedAt >= cloud.updatedAt) return;
+
+  for (const name of STARFIGHTER_SAVE_FILES) {
+    if (typeof cloud.files[name] !== 'string') continue;
+    try {
+      FS.writeFile(STARFIGHTER_SAVE_DIR + '/' + name, cloud.files[name]);
+    } catch (err) {
+      console.warn('Could not restore cloud file:', name, err);
+    }
+  }
+  starfighterWriteMetadata(cloud.updatedAt);
+  document.documentElement.setAttribute('data-starfighter-cloud-restored', '1');
+}
+
+let starfighterCloudPushTimer = null;
+globalThis.starfighterScheduleCloudPush = function () {
+  if (starfighterCloudPushTimer !== null) clearTimeout(starfighterCloudPushTimer);
+  starfighterCloudPushTimer = setTimeout(async function () {
+    starfighterCloudPushTimer = null;
+    const player = globalThis.starfighterPlayer;
+    if (!player) return;
+
+    const files = starfighterCollectSaveFiles();
+    if (Object.keys(files).length === 0) return;
+
+    const updatedAt = Date.now();
+    try {
+      await player.setData({
+        [STARFIGHTER_CLOUD_KEY]: {
+          version: 1,
+          updatedAt: updatedAt,
+          files: files
+        }
+      }, false);
+      starfighterWriteMetadata(updatedAt);
+      document.documentElement.setAttribute('data-starfighter-cloud-saved', '1');
+    } catch (err) {
+      console.warn('Could not upload Starfighter cloud save:', err);
+    }
+  }, 1500);
+};
+
+Module['preRun'] = Module['preRun'] || [];
+Module['preRun'].push(function () {
+  document.documentElement.setAttribute('data-starfighter-prerun', '1');
+  FS.mkdirTree(STARFIGHTER_SAVE_DIR);
+  FS.mount(IDBFS, { autoPersist: true }, STARFIGHTER_SAVE_DIR);
+
+  let dependencyReleased = false;
+  addRunDependency('starfighter-storage-restore');
+
+  function releaseStartup(timedOut) {
+    if (dependencyReleased) return;
+    dependencyReleased = true;
+    if (timedOut) {
+      document.documentElement.setAttribute('data-starfighter-storage-timeout', '1');
+      console.warn('Starfighter storage restore timed out; continuing startup.');
+    }
+    removeRunDependency('starfighter-storage-restore');
+  }
+
+  let localSyncSettled = false;
+  FS.syncfs(true, async function (err) {
+    if (dependencyReleased) return;
+    localSyncSettled = true;
+    if (err) console.warn('IDBFS initial sync failed:', err);
+    document.documentElement.setAttribute('data-starfighter-idbfs-ready', '1');
+
+    try {
+      await Promise.race([
+        starfighterRestoreCloudSave(),
+        starfighterSleep(2000)
+      ]);
+    } finally {
+      if (!dependencyReleased) {
+        document.documentElement.setAttribute('data-starfighter-storage-ready', '1');
+        releaseStartup(false);
+      }
+    }
+  });
+
+  setTimeout(function () {
+    if (!localSyncSettled) {
+      document.documentElement.setAttribute('data-starfighter-idbfs-timeout', '1');
+    }
+    releaseStartup(true);
+  }, 4000);
+});
+
+Module['onRuntimeInitialized'] = function () {
+  document.documentElement.setAttribute('data-starfighter-runtime-initialized', '1');
+};
