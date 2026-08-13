@@ -49,6 +49,24 @@ if warning_new not in gfx_source:
 gfx_path.write_text(gfx_source)
 
 shutil.copyfile('web/web_i18n.c.txt', 'upstream/src/web_i18n.c')
+i18n_path = Path('upstream/src/web_i18n.c')
+i18n_source = i18n_path.read_text()
+i18n_marker = '    {NULL, NULL}\n};'
+i18n_fragments = []
+for fragment_path in sorted(Path('web').glob('i18n-*.inc')):
+    fragment = fragment_path.read_text()
+    if fragment.strip():
+        i18n_fragments.append(fragment.rstrip() + '\n')
+if i18n_fragments:
+    if i18n_marker not in i18n_source:
+        raise SystemExit('web translation table terminator not found')
+    i18n_source = i18n_source.replace(
+        i18n_marker,
+        '\n' + ''.join(i18n_fragments) + '\n' + i18n_marker,
+        1,
+    )
+i18n_path.write_text(i18n_source)
+
 defs_path = Path('upstream/src/defs.h')
 defs_source = defs_path.read_text()
 i18n_old = '#define _(s) gettext(s)\n'
