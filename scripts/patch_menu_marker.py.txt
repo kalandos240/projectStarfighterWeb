@@ -37,3 +37,4 @@ gfx_path.write_text(gfx_source)
 
 exec(Path('scripts/patch_ads.py.txt').read_text(), {})
 exec(Path('scripts/patch_browser_text.py.txt').read_text(), {})
+exec(Path('scripts/patch_unicode_probe.py.txt').read_text(), {})
