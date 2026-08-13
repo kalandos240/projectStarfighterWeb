@@ -1,0 +1,8 @@
+#include <stddef.h>
+
+const char *starfighter_web_gettext(const char *source);
+
+const char *starfighter_web_ngettext(const char *singular, const char *plural, unsigned long n)
+{
+    return starfighter_web_gettext((n == 1) ? singular : plural);
+}
