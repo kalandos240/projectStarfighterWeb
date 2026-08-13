@@ -1,0 +1,5 @@
+    {"I've heard of him. He's the Commander of WEAPCO's naval forces. One of the best pilots they ever had.", "Я о нём слышал. Он командует флотом WEAPCO и считается одним из лучших их пилотов."},
+    {"Anyway, what's the scoop on Mordor, Sid?", "Ладно, что у нас по Mordor, Сид?"},
+    {"I've learned from the scientist we captured that WEAPCO is testing a new fighter craft there.", "От захваченного учёного я узнал, что WEAPCO испытывает там новый истребитель."},
+    {"Agreed. Capturing it would be better, but that's probably not going to happen.", "Согласен. Лучше было бы захватить его, но вряд ли получится."},
+    {"I wonder if my sister will be here...", "Интересно, моя сестра здесь?.."},
