@@ -1,0 +1,28 @@
+from pathlib import Path
+import shutil
+
+shutil.copyfile('web/web_ngettext.c.txt', 'upstream/src/web_ngettext.c')
+
+path = Path('upstream/src/defs.h')
+source = path.read_text()
+old = '''#ifdef __EMSCRIPTEN__
+const char *starfighter_web_gettext(const char *source);
+#define _(s) starfighter_web_gettext(s)
+#else
+#define _(s) gettext(s)
+#endif
+'''
+new = '''#ifdef __EMSCRIPTEN__
+const char *starfighter_web_gettext(const char *source);
+const char *starfighter_web_ngettext(const char *singular, const char *plural, unsigned long n);
+#define _(s) starfighter_web_gettext(s)
+#define ngettext(singular, plural, n) starfighter_web_ngettext((singular), (plural), (n))
+#else
+#define _(s) gettext(s)
+#endif
+'''
+if new not in source:
+    if old not in source:
+        raise SystemExit('web gettext marker not found')
+    source = source.replace(old, new, 1)
+path.write_text(source)
