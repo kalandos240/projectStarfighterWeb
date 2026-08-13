@@ -1,0 +1,6 @@
+    {"Nice head gear! You shop at the same place as me, huh?", "Классный шлем! Мы что, покупаем их в одном месте?"},
+    {"More importantly, what were you doing out there? You're lucky I was around!", "Лучше скажи, что ты там делала? Тебе повезло, что я оказался рядом!"},
+    {"I'm looking for my sister. She vanished about a week ago.", "Я ищу сестру. Она пропала примерно неделю назад."},
+    {"Hey! Wait a moment! You're that rebel from Spirit! I think you're so cool! Can I come with you?", "Эй, погоди! Ты же тот самый повстанец из Spirit! Ты такой крутой! Можно мне с вами?"},
+    {"Extra firepower? I wouldn't mind one bit! What do you think, Sid?", "Дополнительная огневая мощь? Я только за! Что думаешь, Сид?"},
+    {"I agree. I'm also interested in studying her homing missile launcher; it could come in handy.", "Согласен. Ещё мне интересно изучить её установку самонаводящихся ракет — она может нам пригодиться."},
