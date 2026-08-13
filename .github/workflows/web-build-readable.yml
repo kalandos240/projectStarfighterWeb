@@ -1,0 +1,93 @@
+name: WebAssembly build v2
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-web:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout port repository
+        uses: actions/checkout@v6
+
+      - name: Checkout Project Starfighter upstream
+        uses: actions/checkout@v6
+        with:
+          repository: pr-starfighter/starfighter
+          ref: 315d0456723e19a153dbc5ef37d5cfb27b4cb36c
+          path: upstream
+
+      - name: Checkout Emscripten SDK
+        uses: actions/checkout@v6
+        with:
+          repository: emscripten-core/emsdk
+          path: emsdk
+
+      - name: Install Emscripten
+        run: |
+          ./emsdk/emsdk install latest
+          ./emsdk/emsdk activate latest
+          source emsdk/emsdk_env.sh
+          emcc --version
+
+      - name: Prepare platform bridge and web patches
+        run: |
+          cp web/platform-pre.txt web/platform-pre.js
+          cp scripts/patch_web.py.txt /tmp/patch_web.py
+          python3 /tmp/patch_web.py
+
+      - name: Build browser target
+        run: |
+          source emsdk/emsdk_env.sh
+          mkdir -p dist
+          emcc upstream/src/*.c \
+            -Iupstream/src \
+            -DVERSION='"web-dev"' \
+            -DDATADIR='"/"' \
+            -DNOFONT \
+            -O2 \
+            -sUSE_SDL=2 \
+            -sUSE_SDL_IMAGE=2 \
+            -sSDL2_IMAGE_FORMATS='["png","jpg"]' \
+            -sUSE_SDL_MIXER=2 \
+            -sSDL2_MIXER_FORMATS='["ogg"]' \
+            -sASYNCIFY \
+            -sALLOW_MEMORY_GROWTH=1 \
+            -sFORCE_FILESYSTEM=1 \
+            -sEXIT_RUNTIME=0 \
+            -lidbfs.js \
+            --pre-js web/platform-pre.js \
+            --preload-file upstream/data@/data \
+            --preload-file upstream/gfx@/gfx \
+            --preload-file upstream/sound@/sound \
+            --preload-file upstream/music@/music \
+            --shell-file web/shell.html \
+            -o dist/index.html
+          cp upstream/COPYING upstream/LICENSES dist/
+          du -ah dist | sort -h | tail -n 20
+
+      - name: Chromium runtime smoke test
+        run: |
+          cp scripts/starfighter-smoke.sh.txt /tmp/starfighter-smoke.sh
+          bash /tmp/starfighter-smoke.sh
+
+      - name: Package Yandex Games archive
+        run: |
+          cd dist
+          zip -9 -r ../starfighter-yandexgames.zip . -x 'runtime-*'
+          cd ..
+          unzip -l starfighter-yandexgames.zip
+          ls -lh starfighter-yandexgames.zip
+
+      - name: Upload browser build and diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: starfighter-yandexgames-v2
+          path: |
+            starfighter-yandexgames.zip
+            dist/
