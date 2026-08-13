@@ -44,17 +44,20 @@ jobs:
             -DVERSION='"web-dev"' \
             -DDATADIR='"/"' \
             -DNOFONT \
-            -DNOSOUND \
             -O2 \
             -sUSE_SDL=2 \
             -sUSE_SDL_IMAGE=2 \
             -sSDL2_IMAGE_FORMATS='["png","jpg"]' \
+            -sUSE_SDL_MIXER=2 \
+            -sSDL2_MIXER_FORMATS='["ogg"]' \
             -sASYNCIFY \
             -sALLOW_MEMORY_GROWTH=1 \
             -sFORCE_FILESYSTEM=1 \
             -sEXIT_RUNTIME=0 \
             --preload-file upstream/data@/data \
             --preload-file upstream/gfx@/gfx \
+            --preload-file upstream/sound@/sound \
+            --preload-file upstream/music@/music \
             --shell-file web/shell.html \
             -o dist/index.html
           cp upstream/COPYING upstream/LICENSES dist/
