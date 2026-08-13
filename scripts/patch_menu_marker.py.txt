@@ -35,6 +35,5 @@ if warning_new not in gfx_source:
     gfx_source = gfx_source.replace(warning_old, warning_new, 1)
 gfx_path.write_text(gfx_source)
 
-# The release patch creates the mission end point; attach the Yandex ad hook
-# after that patch has run.
 exec(Path('scripts/patch_ads.py.txt').read_text(), {})
+exec(Path('scripts/patch_browser_text.py.txt').read_text(), {})
