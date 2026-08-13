@@ -40,6 +40,8 @@ jobs:
           cp web/platform-pre-release.txt web/platform-pre.js
           cp scripts/patch_web_release.py.txt /tmp/patch_web.py
           python3 /tmp/patch_web.py
+          cp scripts/patch_menu_marker.py.txt /tmp/patch_menu_marker.py
+          python3 /tmp/patch_menu_marker.py
 
       - name: Build browser target
         run: |

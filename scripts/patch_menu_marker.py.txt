@@ -1,0 +1,20 @@
+from pathlib import Path
+
+path = Path('upstream/src/title.c')
+source = path.read_text()
+old = '''\t\t\tif ((now - then >= 33250) || (skip))
+\t\t\t{
+\t\t\t\toptionRec.x = screen->w / 2 - optionRec.w / 2;
+'''
+new = '''\t\t\tif ((now - then >= 33250) || (skip))
+\t\t\t{
+#ifdef __EMSCRIPTEN__
+\t\t\t\tEM_ASM({ document.documentElement.setAttribute('data-starfighter-menu-ready', '1'); });
+#endif
+\t\t\t\toptionRec.x = screen->w / 2 - optionRec.w / 2;
+'''
+if new not in source:
+    if old not in source:
+        raise SystemExit('title menu marker not found')
+    source = source.replace(old, new, 1)
+path.write_text(source)
