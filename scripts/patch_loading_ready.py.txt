@@ -1,0 +1,40 @@
+from pathlib import Path
+
+path = Path('upstream/src/title.c')
+source = path.read_text(encoding='utf-8')
+
+old_ready = '''#ifdef __EMSCRIPTEN__
+\tEM_ASM({
+\t\tdocument.documentElement.setAttribute('data-starfighter-title-ready', '1');
+\t\tif (globalThis.starfighterPlatformReady)
+\t\t\tglobalThis.starfighterPlatformReady();
+\t});
+#endif
+'''
+new_ready = '''#ifdef __EMSCRIPTEN__
+\tEM_ASM({ document.documentElement.setAttribute('data-starfighter-title-ready', '1'); });
+#endif
+'''
+if new_ready not in source:
+    if old_ready not in source:
+        raise SystemExit('pre-frame LoadingAPI marker not found')
+    source = source.replace(old_ready, new_ready, 1)
+
+old_frame = '''#ifdef __EMSCRIPTEN__
+\t\tEM_ASM({ document.documentElement.setAttribute('data-starfighter-first-frame', '1'); });
+#endif
+'''
+new_frame = '''#ifdef __EMSCRIPTEN__
+\t\tEM_ASM({
+\t\t\tdocument.documentElement.setAttribute('data-starfighter-first-frame', '1');
+\t\t\tif (globalThis.starfighterPlatformReady)
+\t\t\t\tglobalThis.starfighterPlatformReady();
+\t\t});
+#endif
+'''
+if new_frame not in source:
+    if old_frame not in source:
+        raise SystemExit('first-frame marker not found')
+    source = source.replace(old_frame, new_frame, 1)
+
+path.write_text(source, encoding='utf-8')
