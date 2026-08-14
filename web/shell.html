@@ -19,12 +19,18 @@
       display:block;
       image-rendering:auto;
     }
-    #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;background:#000;z-index:10;font-size:18px;font-weight:600}
+    #loading{position:fixed;inset:0;display:flex;flex-direction:column;gap:18px;align-items:center;justify-content:center;color:#fff;background:#000;z-index:10;text-align:center;padding:24px;box-sizing:border-box}
+    #loading-title{font-size:18px;font-weight:600}
+    #loading-controls{max-width:760px;font-size:14px;line-height:1.55;color:#cfcfcf}
+    #loading-controls b{color:#fff;font-weight:700}
     #loading.hidden{display:none}
   </style>
 </head>
 <body>
-  <div id="loading">Загрузка Project: Starfighter…</div>
+  <div id="loading">
+    <div id="loading-title">Загрузка Project: Starfighter…</div>
+    <div id="loading-controls"><b>WASD</b> — движение · <b>ЛКМ / Space</b> — основной огонь · <b>ПКМ / Ctrl</b> — дополнительное оружие · <b>E / Shift</b> — смена оружия · <b>Esc</b> — пауза</div>
+  </div>
   <canvas id="canvas" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
   <script>
     const canvas=document.getElementById('canvas');
