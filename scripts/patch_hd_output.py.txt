@@ -1,20 +1,9 @@
 from pathlib import Path
 
-engine_path = Path('upstream/src/engine.c')
-engine = engine_path.read_text(encoding='utf-8')
-
-old_window = '''\tscreen_adjustDimensions(DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT);\n\n\twindow = SDL_CreateWindow("Project: Starfighter",\n\t\tSDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,\n\t\tscreen->w, screen->h, SDL_WINDOW_RESIZABLE);\n'''
-new_window = '''\tscreen_adjustDimensions(DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT);\n\n\tint windowWidth = screen->w;\n\tint windowHeight = screen->h;\n#ifdef __EMSCRIPTEN__\n\t/* Keep the original 800x600 logical game coordinate space while using\n\t * a larger browser backing canvas. 1280x960 greatly reduces browser\n\t * upscaling blur on desktop without changing gameplay/UI geometry. */\n\twindowWidth = screen->w * 8 / 5;\n\twindowHeight = screen->h * 8 / 5;\n#endif\n\n\twindow = SDL_CreateWindow("Project: Starfighter",\n\t\tSDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,\n\t\twindowWidth, windowHeight, SDL_WINDOW_RESIZABLE);\n'''
-if new_window not in engine:
-    if old_window not in engine:
-        raise SystemExit('engine window-size marker not found')
-    engine = engine.replace(old_window, new_window, 1)
-engine_path.write_text(engine, encoding='utf-8')
-
 renderer_path = Path('upstream/src/renderer.c')
 renderer = renderer_path.read_text(encoding='utf-8')
 old_renderer = '''\tif (renderer == NULL)\n\t{\n\t\trenderer = SDL_CreateRenderer(window, -1, 0);\n'''
-new_renderer = '''\tif (renderer == NULL)\n\t{\n#ifdef __EMSCRIPTEN__\n\t\t/* Smooth the 800x600 logical framebuffer into the higher-resolution\n\t\t * browser backing canvas instead of using coarse nearest scaling. */\n\t\tSDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");\n#endif\n\t\trenderer = SDL_CreateRenderer(window, -1, 0);\n'''
+new_renderer = '''\tif (renderer == NULL)\n\t{\n#ifdef __EMSCRIPTEN__\n\t\t/* The browser shell is widescreen. Starfighter's existing resize path\n\t\t * expands its logical surface horizontally while keeping the original\n\t\t * 600-pixel vertical baseline. Use linear filtering only for the final\n\t\t * presentation scaling so sprites/text are less harsh when CSS and the\n\t\t * backing canvas are not an exact integer match. */\n\t\tSDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");\n#endif\n\t\trenderer = SDL_CreateRenderer(window, -1, 0);\n'''
 if new_renderer not in renderer:
     if old_renderer not in renderer:
         raise SystemExit('renderer creation marker not found')
