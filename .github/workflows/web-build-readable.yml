@@ -96,6 +96,7 @@ jobs:
             -sEXPORTED_FUNCTIONS='["_main","_save"]' \
             -lidbfs.js \
             --pre-js web/platform-pre.js \
+            --pre-js web/yandex-language-gate.txt \
             --embed-file runtime-assets/data@/data \
             --embed-file runtime-assets/gfx@/gfx \
             --embed-file runtime-assets/sound@/sound \
