@@ -1,0 +1,50 @@
+globalThis.starfighterSdkLanguageReady = false;
+
+Module['preRun'] = Module['preRun'] || [];
+Module['preRun'].push(function () {
+  let released = false;
+  addRunDependency('starfighter-yandex-language');
+
+  function releaseLanguageGate(source, lang) {
+    if (released) return;
+    released = true;
+    globalThis.starfighterSdkLanguageReady = true;
+    document.documentElement.setAttribute('data-starfighter-language-source', source);
+    if (lang) document.documentElement.setAttribute('data-starfighter-language', String(lang).toLowerCase());
+    removeRunDependency('starfighter-yandex-language');
+  }
+
+  const sdkPromise = globalThis.starfighterSdkPromise;
+  if (!sdkPromise || typeof sdkPromise.then !== 'function') {
+    releaseLanguageGate('navigator', navigator.language || '');
+    return;
+  }
+
+  const timeout = new Promise(resolve => {
+    setTimeout(function () { resolve({ __starfighterLanguageTimeout: true }); }, 6000);
+  });
+
+  Promise.race([sdkPromise, timeout]).then(function (sdk) {
+    if (sdk && !sdk.__starfighterLanguageTimeout && sdk.environment && sdk.environment.i18n && sdk.environment.i18n.lang) {
+      releaseLanguageGate('ysdk.environment.i18n.lang', sdk.environment.i18n.lang);
+      return;
+    }
+
+    const sdkAlreadyReady = globalThis.starfighterYsdk;
+    if (sdkAlreadyReady && sdkAlreadyReady.environment && sdkAlreadyReady.environment.i18n && sdkAlreadyReady.environment.i18n.lang) {
+      releaseLanguageGate('ysdk.environment.i18n.lang', sdkAlreadyReady.environment.i18n.lang);
+      return;
+    }
+
+    if (sdk && sdk.__starfighterLanguageTimeout) {
+      console.warn('Yandex language initialization timed out; using browser language fallback.');
+      releaseLanguageGate('navigator-timeout-fallback', navigator.language || '');
+      return;
+    }
+
+    releaseLanguageGate('navigator-fallback', navigator.language || '');
+  }).catch(function (err) {
+    console.warn('Could not resolve Yandex interface language:', err);
+    releaseLanguageGate('navigator-error-fallback', navigator.language || '');
+  });
+});
