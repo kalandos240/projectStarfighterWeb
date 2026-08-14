@@ -53,6 +53,22 @@ jobs:
           cp scripts/patch_menu_marker.py.txt /tmp/patch_menu_marker.py
           python3 /tmp/patch_menu_marker.py
 
+      - name: Stage runtime assets only
+        run: |
+          rm -rf runtime-assets
+          mkdir -p runtime-assets/data runtime-assets/gfx runtime-assets/sound runtime-assets/music
+          cp upstream/data/credits.txt runtime-assets/data/
+          find upstream/gfx -maxdepth 1 -type f \( -name '*.png' -o -name '*.jpg' \) -exec cp {} runtime-assets/gfx/ \;
+          find upstream/sound -maxdepth 1 -type f -name '*.ogg' -exec cp {} runtime-assets/sound/ \;
+          find upstream/music -maxdepth 1 -type f -name '*.ogg' -exec cp {} runtime-assets/music/ \;
+          echo "Runtime assets:"
+          find runtime-assets -type f | sort
+          test "$(find runtime-assets/music -type f -name '*.ogg' | wc -l)" -eq 12
+          test "$(find runtime-assets/sound -type f -name '*.ogg' | wc -l)" -gt 0
+          test -s runtime-assets/data/credits.txt
+          test ! -e runtime-assets/data/TakaoPGothic.ttf
+          test ! -e runtime-assets/music/sources
+
       - name: Build standalone browser target
         run: |
           source emsdk/emsdk_env.sh
@@ -76,10 +92,10 @@ jobs:
             -sSINGLE_FILE_BINARY_ENCODE=0 \
             -lidbfs.js \
             --pre-js web/platform-pre.js \
-            --embed-file upstream/data@/data \
-            --embed-file upstream/gfx@/gfx \
-            --embed-file upstream/sound@/sound \
-            --embed-file upstream/music@/music \
+            --embed-file runtime-assets/data@/data \
+            --embed-file runtime-assets/gfx@/gfx \
+            --embed-file runtime-assets/sound@/sound \
+            --embed-file runtime-assets/music@/music \
             --shell-file web/shell.html \
             -o dist/index.html
           cp upstream/COPYING upstream/LICENSES dist/
@@ -95,7 +111,6 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import unicodedata
 
           root = Path('dist')
           release = [p for p in root.rglob('*') if p.is_file() and not p.name.startswith('runtime-') and p.name != 'i18n-audit.txt']
