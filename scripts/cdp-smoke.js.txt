@@ -141,9 +141,14 @@ async function main() {
 
   await evaluate(`(() => {
     const root = document.documentElement;
+    const existingSdk = globalThis.starfighterYsdk || {};
+    const existingEnvironment = existingSdk.environment || { i18n: { lang: 'ru' } };
     globalThis.__qaGameplayCalls = [];
     globalThis.starfighterYsdk = {
+      ...existingSdk,
+      environment: existingEnvironment,
       features: {
+        ...(existingSdk.features || {}),
         GameplayAPI: {
           start() { globalThis.__qaGameplayCalls.push('start'); root.setAttribute('data-qa-gameplay', 'start'); },
           stop() { globalThis.__qaGameplayCalls.push('stop'); root.setAttribute('data-qa-gameplay', 'stop'); }
@@ -156,6 +161,9 @@ async function main() {
         }
       }
     };
+    if (!globalThis.starfighterYsdk.environment || !globalThis.starfighterYsdk.environment.i18n || globalThis.starfighterYsdk.environment.i18n.lang !== 'ru') {
+      throw new Error('Yandex language was lost while installing GameplayAPI QA hooks');
+    }
     globalThis.starfighterGameplayReported = false;
     globalThis.starfighterGameplayStart();
     return true;
@@ -166,7 +174,7 @@ async function main() {
   await waitFor(`globalThis.starfighterPlatformPaused === true && globalThis.starfighterGameplayReported === false && document.documentElement.getAttribute('data-qa-gameplay') === 'stop'`, 'GameplayAPI stop on platform pause', 5000);
   await evaluate(`globalThis.starfighterSetPlatformPaused(false)`);
   await waitFor(`globalThis.starfighterPlatformPaused === false && globalThis.starfighterGameplayReported === true && document.documentElement.getAttribute('data-qa-gameplay') === 'start'`, 'GameplayAPI restart on platform resume', 5000);
-  console.log('Yandex GameplayAPI state follows gameplay pause/resume');
+  console.log('Yandex GameplayAPI state follows gameplay pause/resume without losing SDK language');
 
   await evaluate(`(() => {
     globalThis.starfighterPlayer = {
@@ -205,6 +213,7 @@ async function main() {
       menu: e.getAttribute('data-starfighter-menu-ready'),
       difficulty: e.getAttribute('data-starfighter-difficulty-ready'),
       platformReady: e.getAttribute('data-starfighter-platform-ready'),
+      language: globalThis.starfighterYsdk && globalThis.starfighterYsdk.environment && globalThis.starfighterYsdk.environment.i18n && globalThis.starfighterYsdk.environment.i18n.lang,
       gameplayDesired: globalThis.starfighterGameplayDesired === false,
       gameplayCalls: globalThis.__qaGameplayCalls
     };
