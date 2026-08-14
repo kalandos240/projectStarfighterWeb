@@ -1,0 +1,227 @@
+name: Capture extra real gameplay screenshots
+
+on:
+  push:
+    paths:
+      - '.github/workflows/capture-extra-gameplay.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout port repository
+        uses: actions/checkout@v6
+
+      - name: Download validated WebAssembly build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p artifact
+          gh run download 31816768354 --repo "$GITHUB_REPOSITORY" -n starfighter-yandexgames-v2 -D artifact
+          test -s artifact/dist/index.html
+          rm -rf dist
+          cp -a artifact/dist dist
+          rm -f dist/sdk.js
+
+      - name: Capture 8 gameplay screenshots in RU and EN
+        shell: bash
+        run: |
+          set -euo pipefail
+          BROWSER="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          test -n "$BROWSER"
+          mkdir -p screenshots/ru screenshots/en
+
+          cat > /tmp/starfighter-promo-server.py <<'PY'
+          from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
+          from pathlib import Path
+          import os
+          os.chdir(Path('dist'))
+          class Handler(SimpleHTTPRequestHandler):
+              def end_headers(self):
+                  self.send_header('Cache-Control', 'no-store')
+                  super().end_headers()
+          ThreadingHTTPServer(('127.0.0.1', 8765), Handler).serve_forever()
+          PY
+          python3 /tmp/starfighter-promo-server.py >/tmp/starfighter-promo-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+
+          cat > /tmp/capture-gameplay.js <<'JS'
+          const fs = require('fs');
+          const port = process.env.CDP_PORT;
+          const endpoint = `http://127.0.0.1:${port}/json/list`;
+          const targetUrl = 'http://127.0.0.1:8765/index.html';
+          const outDir = process.env.OUT_DIR;
+          const expectedLang = process.env.EXPECTED_LANG;
+          function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+          async function findTarget() {
+            const deadline = Date.now() + 90000;
+            while (Date.now() < deadline) {
+              try {
+                const items = await (await fetch(endpoint)).json();
+                const t = items.find(x => x.type === 'page' && x.url.startsWith(targetUrl));
+                if (t?.webSocketDebuggerUrl) return t;
+              } catch (_) {}
+              await sleep(200);
+            }
+            throw new Error('Timed out waiting for Chromium target');
+          }
+          async function main() {
+            fs.mkdirSync(outDir, { recursive: true });
+            const target = await findTarget();
+            const ws = new WebSocket(target.webSocketDebuggerUrl);
+            await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject; });
+            let nextId = 1;
+            const pending = new Map();
+            ws.onmessage = e => {
+              const m = JSON.parse(e.data);
+              if (m.id && pending.has(m.id)) {
+                const p = pending.get(m.id);
+                pending.delete(m.id);
+                m.error ? p.reject(new Error(JSON.stringify(m.error))) : p.resolve(m.result || {});
+              }
+            };
+            function send(method, params = {}) {
+              return new Promise((resolve, reject) => {
+                const id = nextId++;
+                pending.set(id, {resolve, reject});
+                ws.send(JSON.stringify({id, method, params}));
+              });
+            }
+            async function evaluate(expression) {
+              const r = await send('Runtime.evaluate', {expression, returnByValue: true});
+              if (r.exceptionDetails) throw new Error(JSON.stringify(r.exceptionDetails));
+              return r.result?.value;
+            }
+            async function waitFor(expr, label, timeout = 60000) {
+              const end = Date.now() + timeout;
+              while (Date.now() < end) {
+                try { if (await evaluate(expr)) return; } catch (_) {}
+                await sleep(200);
+              }
+              throw new Error('Timeout: ' + label);
+            }
+            const keyMap = {
+              Space: {code:'Space', key:' ', vk:32, text:' '},
+              ArrowRight: {code:'ArrowRight', key:'ArrowRight', vk:39},
+              ArrowLeft: {code:'ArrowLeft', key:'ArrowLeft', vk:37},
+              ArrowUp: {code:'ArrowUp', key:'ArrowUp', vk:38},
+              ArrowDown: {code:'ArrowDown', key:'ArrowDown', vk:40},
+              ControlLeft: {code:'ControlLeft', key:'Control', vk:17},
+              KeyE: {code:'KeyE', key:'e', vk:69, text:'e'}
+            };
+            async function down(name) {
+              const k = keyMap[name];
+              await send('Input.dispatchKeyEvent', {
+                type:'keyDown', code:k.code, key:k.key,
+                windowsVirtualKeyCode:k.vk, nativeVirtualKeyCode:k.vk,
+                ...(k.text ? {text:k.text} : {})
+              });
+            }
+            async function up(name) {
+              const k = keyMap[name];
+              await send('Input.dispatchKeyEvent', {
+                type:'keyUp', code:k.code, key:k.key,
+                windowsVirtualKeyCode:k.vk, nativeVirtualKeyCode:k.vk
+              });
+            }
+            async function tap(name, ms = 100) {
+              await down(name); await sleep(ms); await up(name); await sleep(300);
+            }
+            async function shot(name) {
+              const s = await send('Page.captureScreenshot', {format:'png', captureBeyondViewport:false});
+              fs.writeFileSync(`${outDir}/${name}.png`, Buffer.from(s.data, 'base64'));
+              console.log('captured', expectedLang, name);
+            }
+            async function actionShot(name, keys, holdMs = 700) {
+              for (const k of keys) await down(k);
+              await sleep(Math.max(250, Math.floor(holdMs * 0.55)));
+              await shot(name);
+              await sleep(Math.max(100, holdMs - Math.floor(holdMs * 0.55)));
+              for (const k of [...keys].reverse()) await up(k);
+              await sleep(350);
+            }
+
+            await send('Runtime.enable');
+            await send('Page.enable');
+            await waitFor(`document.documentElement?.getAttribute('data-starfighter-first-frame') === '1'`, 'first frame', 120000);
+            await waitFor(`globalThis.starfighterYsdk?.environment?.i18n?.lang === ${JSON.stringify(expectedLang)}`, 'SDK language');
+
+            await tap('Space');
+            await waitFor(`document.documentElement?.getAttribute('data-starfighter-menu-ready') === '1'`, 'main menu');
+            await tap('Space');
+            await waitFor(`document.documentElement?.getAttribute('data-starfighter-difficulty-ready') === '1'`, 'difficulty');
+            await tap('Space');
+            await waitFor(`globalThis.starfighterGameplayDesired === true`, 'mission gameplay', 90000);
+            await sleep(800);
+            await tap('Space');
+            await sleep(1200);
+
+            await shot('01_gameplay_start');
+            await actionShot('02_move_right', ['ArrowRight'], 1000);
+            await actionShot('03_primary_fire', ['Space'], 900);
+            await actionShot('04_up_and_fire', ['ArrowUp', 'Space'], 1100);
+            await actionShot('05_left_and_fire', ['ArrowLeft', 'Space'], 1100);
+            await actionShot('06_secondary_fire', ['ControlLeft'], 900);
+            await tap('KeyE');
+            await actionShot('07_switched_weapon_fire', ['Space'], 1000);
+            await actionShot('08_down_right_combat', ['ArrowDown', 'ArrowRight', 'Space'], 1300);
+
+            ws.close();
+          }
+          main().catch(e => { console.error(e); process.exit(1); });
+          JS
+
+          capture_lang() {
+            local lang="$1" port="$2" out="$3"
+            cat > dist/sdk.js <<JS
+globalThis.YaGames = {
+  init: async function () {
+    return {
+      environment: { i18n: { lang: '${lang}' } },
+      features: { LoadingAPI: { ready() {} }, GameplayAPI: { start() {}, stop() {} } },
+      on() {},
+      getPlayer: async function () { return { getData: async () => ({}), setData: async () => {} }; },
+      adv: { showFullscreenAdv() {} }
+    };
+  }
+};
+JS
+            local profile
+            profile="$(mktemp -d)"
+            "$BROWSER" \
+              --headless=new --no-sandbox --disable-dev-shm-usage \
+              --use-angle=swiftshader --enable-unsafe-swiftshader \
+              --autoplay-policy=no-user-gesture-required \
+              --window-size=1280,720 \
+              --remote-debugging-address=127.0.0.1 \
+              --remote-debugging-port="$port" \
+              --user-data-dir="$profile" \
+              'http://127.0.0.1:8765/index.html' \
+              >/tmp/browser-${lang}.out 2>/tmp/browser-${lang}.log &
+            local browser_pid=$!
+            CDP_PORT="$port" OUT_DIR="$out" EXPECTED_LANG="$lang" node /tmp/capture-gameplay.js
+            kill "$browser_pid" 2>/dev/null || true
+            wait "$browser_pid" 2>/dev/null || true
+            rm -rf "$profile"
+          }
+
+          capture_lang ru 9222 screenshots/ru
+          capture_lang en 9223 screenshots/en
+          rm -f dist/sdk.js
+
+          test "$(find screenshots/ru -maxdepth 1 -type f -name '*.png' | wc -l)" -eq 8
+          test "$(find screenshots/en -maxdepth 1 -type f -name '*.png' | wc -l)" -eq 8
+          find screenshots -type f -name '*.png' -print -exec file {} \;
+
+      - name: Upload extra real gameplay screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: starfighter-extra-gameplay-screenshots
+          path: screenshots/
+          retention-days: 7
