@@ -3,11 +3,12 @@ from pathlib import Path
 
 def replace_once(path, old, new, label):
     text = path.read_text(encoding='utf-8')
+    if old in text:
+        path.write_text(text.replace(old, new, 1), encoding='utf-8')
+        return
     if new in text:
         return
-    if old not in text:
-        raise SystemExit(f'{label} marker not found in {path}')
-    path.write_text(text.replace(old, new, 1), encoding='utf-8')
+    raise SystemExit(f'{label} marker not found in {path}')
 
 
 title = Path('upstream/src/title.c')
