@@ -75,7 +75,7 @@ jobs:
           test ! -e runtime-assets/data/TakaoPGothic.ttf
           test ! -e runtime-assets/music/sources
 
-      - name: Build standalone browser target
+      - name: Build CSP-safe standalone browser target
         run: |
           source emsdk/emsdk_env.sh
           mkdir -p dist
@@ -94,21 +94,44 @@ jobs:
             -sALLOW_MEMORY_GROWTH=1 \
             -sFORCE_FILESYSTEM=1 \
             -sEXIT_RUNTIME=0 \
-            -sSINGLE_FILE=1 \
-            -sSINGLE_FILE_BINARY_ENCODE=0 \
             -sEXPORTED_FUNCTIONS='["_main","_save"]' \
             -lidbfs.js \
             --pre-js web/platform-pre.js \
             --pre-js web/yandex-language-gate.txt \
-            --embed-file runtime-assets/data@/data \
-            --embed-file runtime-assets/gfx@/gfx \
-            --embed-file runtime-assets/sound@/sound \
-            --embed-file runtime-assets/music@/music \
+            --preload-file runtime-assets/data@/data \
+            --preload-file runtime-assets/gfx@/gfx \
+            --preload-file runtime-assets/sound@/sound \
+            --preload-file runtime-assets/music@/music \
             --shell-file web/shell.html \
             -o dist/index.html
+          cp web/bootstrap.js dist/bootstrap.js
           cp upstream/COPYING upstream/LICENSES dist/
           test -s dist/index.html
+          test -s dist/index.js
+          test -s dist/index.wasm
+          test -s dist/index.data
+          test -s dist/bootstrap.js
           du -ah dist | sort -h | tail -n 20
+
+      - name: Validate CSP-safe HTML
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          html = Path('dist/index.html').read_text(encoding='utf-8', errors='replace')
+          scripts = re.findall(r'<script\b([^>]*)>(.*?)</script>', html, flags=re.I | re.S)
+          inline = [(attrs, body[:80]) for attrs, body in scripts if not re.search(r'\bsrc\s*=\s*["\'][^"\']+["\']', attrs, flags=re.I) or body.strip()]
+          handlers = re.findall(r'\son[a-z]+\s*=\s*["\']', html, flags=re.I)
+          javascript_urls = re.findall(r'(?:href|src)\s*=\s*["\']\s*javascript:', html, flags=re.I)
+          print('Script tags:', len(scripts))
+          print('Inline scripts:', len(inline))
+          print('Inline event handlers:', len(handlers))
+          assert not inline, f'Inline scripts are forbidden by Yandex nonce CSP: {inline}'
+          assert not handlers, 'Inline event handlers are forbidden by Yandex nonce CSP'
+          assert not javascript_urls, 'javascript: URLs are forbidden by Yandex CSP'
+          assert 'bootstrap.js' in html and 'index.js' in html, 'external bootstrap/Emscripten scripts are missing'
+          PY
 
       - name: Yandex-mocked Chromium runtime smoke test
         run: |
@@ -122,7 +145,7 @@ jobs:
 
           root = Path('dist')
           diagnostics = {'i18n-audit.txt', 'yandex-moderation-audit.txt'}
-          release = [p for p in root.rglob('*') if p.is_file() and not p.name.startswith('runtime-') and p.name not in diagnostics]
+          release = [p for p in root.rglob('*') if p.is_file() and not p.name.startswith('runtime-') and p.name not in diagnostics and p.name != 'sdk.js']
           assert (root / 'index.html') in release, 'index.html must be in archive root'
 
           bad = []
@@ -141,6 +164,7 @@ jobs:
 
       - name: Package Yandex Games archive
         run: |
+          rm -f dist/sdk.js
           cd dist
           zip -9 -r ../starfighter-yandexgames.zip . -x 'runtime-*' -x 'i18n-audit.txt' -x 'yandex-moderation-audit.txt'
           cd ..
