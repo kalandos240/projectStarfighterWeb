@@ -61,12 +61,19 @@ def scan_hardcoded_ui(src_root):
         ('gfx_renderUnicode', re.compile(r'gfx_renderUnicode\s*\(\s*"((?:\\.|[^"\\])*)"', re.S)),
         ('saveSlot strcpy', re.compile(r'strcpy\s*\(\s*saveSlot\s*\[[^\]]+\]\s*,\s*"((?:\\.|[^"\\])*)"', re.S)),
     ]
+    legal_notices = {
+        'Copyright Parallel Realities 2003',
+        'Copyright Guus Sliepen, Astrid S. de Wijn and others 2012',
+        'Copyright 2015-2023 Diligent Circle',
+    }
     for path in sorted(src_root.glob('*.c')):
         text = path.read_text(encoding='utf-8', errors='replace')
         for kind, pattern in patterns:
             for match in pattern.finditer(text):
                 value = decode_c_string(match.group(1))
                 if not value or not re.search(r'[A-Za-z]', value):
+                    continue
+                if value in legal_notices:
                     continue
                 line = text.count('\n', 0, match.start()) + 1
                 findings.append((path.name, line, kind, value))
@@ -117,6 +124,7 @@ with out.open('w', encoding='utf-8') as fp:
     fp.write(f'\nHardcoded visible English candidates: {len(hardcoded)}\n')
     for filename, line, kind, value in hardcoded:
         fp.write(f'{filename}:{line} [{kind}] {value.replace(chr(10), "\\n")}\n')
+    fp.write('\nLegal attribution strings are intentionally preserved verbatim.\n')
 
 print(out.read_text(encoding='utf-8'))
 if '--strict' in sys.argv and missing:
