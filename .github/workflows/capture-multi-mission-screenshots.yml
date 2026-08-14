@@ -1,4 +1,5 @@
 name: Capture multi-mission Yandex screenshots
+# Chrome DevTools forces the page viewport to exactly 1280x720.
 
 on:
   push:
