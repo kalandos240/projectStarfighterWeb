@@ -1,0 +1,254 @@
+name: Capture multi-mission Yandex screenshots
+
+on:
+  push:
+    paths:
+      - '.github/workflows/capture-multi-mission-screenshots.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout port repository
+        uses: actions/checkout@v6
+
+      - name: Checkout pinned upstream
+        uses: actions/checkout@v6
+        with:
+          repository: pr-starfighter/starfighter
+          ref: 315d0456723e19a153dbc5ef37d5cfb27b4cb36c
+          path: upstream
+
+      - name: Apply normal web-port patches
+        run: |
+          python3 scripts/patch_hardcoded_ui.py.txt
+          python3 scripts/patch_shop_buttons.py.txt
+          python3 scripts/patch_shop_performance.py.txt
+          python3 scripts/patch_hd_output.py.txt
+          cp web/platform-pre-release.txt web/platform-pre.js
+          cp scripts/patch_web_release.py.txt /tmp/patch_web.py
+          python3 /tmp/patch_web.py
+          cp scripts/patch_menu_marker.py.txt /tmp/patch_menu_marker.py
+          python3 /tmp/patch_menu_marker.py
+
+      - name: Add promo-only direct mission launcher
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('upstream/src/Starfighter.c')
+          s = p.read_text()
+          needle = '\tgame_init();\n\n\twhile (1)\n'
+          insert = '''\tgame_init();
+
+\tconst char *promoMission = NULL;
+\tfor (int i = 1; i < argc; i++)
+\t{
+\t\tif (strncmp(argv[i], "--promo=", 8) == 0)
+\t\t\tpromoMission = argv[i] + 8;
+\t}
+
+\tif (promoMission != NULL)
+\t{
+\t\tsection = 2;
+\t\tgame.stationedPlanet = 0;
+\t\tgame.destinationPlanet = 0;
+\t\tgame.hasWingMate1 = 1;
+\t\tgame.hasWingMate2 = 1;
+\t\tengine.cheat = 1;
+\t\tengine.cheatShield = 1;
+\t\tengine.cheatAmmo = 1;
+\t\tengine.cheatTime = 1;
+
+\t\tif (strcmp(promoMission, "HAIL") == 0) { game.system = SYSTEM_SPIRIT; game.area = MISN_HAIL; }
+\t\telse if (strcmp(promoMission, "CERADSE") == 0) { game.system = SYSTEM_SPIRIT; game.area = MISN_CERADSE; }
+\t\telse if (strcmp(promoMission, "JOLDAR") == 0) { game.system = SYSTEM_SPIRIT; game.area = MISN_JOLDAR; }
+\t\telse if (strcmp(promoMission, "MOEBO") == 0) { game.system = SYSTEM_SPIRIT; game.area = MISN_MOEBO; }
+\t\telse if (strcmp(promoMission, "NEROD") == 0) { game.system = SYSTEM_EYANANTH; game.area = MISN_NEROD; }
+\t\telse if (strcmp(promoMission, "ODEON") == 0) { game.system = SYSTEM_MORDOR; game.area = MISN_ODEON; }
+\t\telse if (strcmp(promoMission, "JUPITER") == 0) { game.system = SYSTEM_SOL; game.area = MISN_JUPITER; }
+\t\telse if (strcmp(promoMission, "EARTH") == 0) { game.system = SYSTEM_SOL; game.area = MISN_EARTH; }
+\t\telse { game.system = SYSTEM_SPIRIT; game.area = MISN_HAIL; }
+
+\t\tintermission_initPlanets(game.system);
+\t}
+
+\twhile (1)
+'''
+          if needle not in s:
+              raise SystemExit('Starfighter.c insertion point not found')
+          p.write_text(s.replace(needle, insert, 1))
+
+          pre = Path('web/platform-pre.js')
+          js = pre.read_text()
+          js += '''\n// Promo capture only: select a real game mission from the URL.\nif (typeof location !== 'undefined') {\n  const promoMission = new URLSearchParams(location.search).get('promo');\n  if (promoMission) {\n    Module['arguments'] = ['--promo=' + promoMission];\n  }\n}\n'''
+          pre.write_text(js)
+          PY
+
+      - name: Checkout Emscripten SDK
+        uses: actions/checkout@v6
+        with:
+          repository: emscripten-core/emsdk
+          path: emsdk
+
+      - name: Install Emscripten
+        run: |
+          ./emsdk/emsdk install latest
+          ./emsdk/emsdk activate latest
+
+      - name: Stage runtime assets
+        run: |
+          rm -rf runtime-assets
+          mkdir -p runtime-assets/data runtime-assets/gfx runtime-assets/sound runtime-assets/music
+          cp upstream/data/credits.txt runtime-assets/data/
+          find upstream/gfx -maxdepth 1 -type f \( -name '*.png' -o -name '*.jpg' \) -exec cp {} runtime-assets/gfx/ \;
+          find upstream/sound -maxdepth 1 -type f -name '*.ogg' -exec cp {} runtime-assets/sound/ \;
+          find upstream/music -maxdepth 1 -type f -name '*.ogg' -exec cp {} runtime-assets/music/ \;
+
+      - name: Build promo-only browser executable
+        run: |
+          source emsdk/emsdk_env.sh
+          mkdir -p dist
+          emcc upstream/src/*.c \
+            -Iupstream/src \
+            -DVERSION='"2.5-web1"' \
+            -DDATADIR='"/"' \
+            -DNOFONT \
+            -O2 \
+            -sUSE_SDL=2 \
+            -sUSE_SDL_IMAGE=2 \
+            -sSDL2_IMAGE_FORMATS='["png","jpg"]' \
+            -sUSE_SDL_MIXER=2 \
+            -sSDL2_MIXER_FORMATS='["ogg"]' \
+            -sASYNCIFY \
+            -sALLOW_MEMORY_GROWTH=1 \
+            -sFORCE_FILESYSTEM=1 \
+            -sEXIT_RUNTIME=0 \
+            -sEXPORTED_FUNCTIONS='["_main","_save"]' \
+            -lidbfs.js \
+            --pre-js web/platform-pre.js \
+            --pre-js web/yandex-language-gate.txt \
+            --preload-file runtime-assets/data@/data \
+            --preload-file runtime-assets/gfx@/gfx \
+            --preload-file runtime-assets/sound@/sound \
+            --preload-file runtime-assets/music@/music \
+            --shell-file web/shell.html \
+            -o dist/index.html
+          cp web/bootstrap.js dist/bootstrap.js
+
+      - name: Capture 8 different missions in Russian and English
+        shell: bash
+        run: |
+          set -euo pipefail
+          BROWSER="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          mkdir -p screenshots/ru screenshots/en
+
+          cat > /tmp/server.py <<'PY'
+          from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
+          from pathlib import Path
+          import os
+          os.chdir(Path('dist'))
+          class H(SimpleHTTPRequestHandler):
+              def end_headers(self):
+                  self.send_header('Cache-Control','no-store')
+                  super().end_headers()
+          ThreadingHTTPServer(('127.0.0.1',8765),H).serve_forever()
+          PY
+          python3 /tmp/server.py >/tmp/server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+
+          cat > /tmp/capture.js <<'JS'
+          const fs = require('fs');
+          const port = process.env.CDP_PORT;
+          const endpoint = `http://127.0.0.1:${port}/json/list`;
+          const mission = process.env.MISSION;
+          const out = process.env.OUT;
+          const targetPrefix = `http://127.0.0.1:8765/index.html?promo=${mission}`;
+          const sleep = ms => new Promise(r => setTimeout(r, ms));
+          async function target() {
+            for (let i=0;i<900;i++) {
+              try {
+                const a = await (await fetch(endpoint)).json();
+                const t = a.find(x => x.type==='page' && x.url.startsWith(targetPrefix));
+                if (t?.webSocketDebuggerUrl) return t;
+              } catch (_) {}
+              await sleep(100);
+            }
+            throw new Error('target timeout '+mission);
+          }
+          async function main() {
+            const t=await target(); const ws=new WebSocket(t.webSocketDebuggerUrl);
+            await new Promise((r,j)=>{ws.onopen=r;ws.onerror=j});
+            let id=0; const pending=new Map();
+            ws.onmessage=e=>{const m=JSON.parse(e.data); if(m.id&&pending.has(m.id)){const p=pending.get(m.id);pending.delete(m.id);m.error?p.j(new Error(JSON.stringify(m.error))):p.r(m.result||{})}};
+            function send(method,params={}){return new Promise((r,j)=>{const n=++id;pending.set(n,{r,j});ws.send(JSON.stringify({id:n,method,params}))})}
+            async function ev(expr){const r=await send('Runtime.evaluate',{expression:expr,returnByValue:true});return r.result?.value}
+            async function wait(expr,ms=120000){const end=Date.now()+ms; while(Date.now()<end){try{if(await ev(expr))return}catch(_){} await sleep(150)} throw new Error('wait timeout '+mission)}
+            async function key(type,code,key,vk,text){await send('Input.dispatchKeyEvent',{type,code,key,windowsVirtualKeyCode:vk,nativeVirtualKeyCode:vk,...(text?{text}:{})})}
+            await send('Runtime.enable'); await send('Page.enable');
+            await wait(`document.documentElement?.getAttribute('data-starfighter-runtime-initialized')==='1'`);
+            await wait(`globalThis.starfighterGameplayDesired===true`);
+            await sleep(700);
+            await key('keyDown','Space',' ',32,' '); await sleep(100); await key('keyUp','Space',' ',32); // dismiss mission briefing
+            await sleep(1800);
+            const patterns = {
+              HAIL:['ArrowRight','Space'], CERADSE:['ArrowUp','Space'], JOLDAR:['ArrowDown','Space'], MOEBO:['ArrowRight','Control'],
+              NEROD:['ArrowLeft','Space'], ODEON:['ArrowUp','Control'], JUPITER:['ArrowRight','Space'], EARTH:['ArrowDown','Space']
+            };
+            const map={ArrowRight:['ArrowRight','ArrowRight',39],ArrowLeft:['ArrowLeft','ArrowLeft',37],ArrowUp:['ArrowUp','ArrowUp',38],ArrowDown:['ArrowDown','ArrowDown',40],Space:['Space',' ',32,' '],Control:['ControlLeft','Control',17]};
+            for(const k of patterns[mission]){const x=map[k];await key('keyDown',x[0],x[1],x[2],x[3])}
+            await sleep(900);
+            const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+            fs.writeFileSync(out,Buffer.from(shot.data,'base64'));
+            for(const k of [...patterns[mission]].reverse()){const x=map[k];await key('keyUp',x[0],x[1],x[2])}
+            ws.close();
+          }
+          main().catch(e=>{console.error(e);process.exit(1)});
+          JS
+
+          capture_one() {
+            local lang="$1" mission="$2" port="$3" outfile="$4"
+            cat > dist/sdk.js <<JS
+globalThis.YaGames={init:async()=>({environment:{i18n:{lang:'${lang}'}},features:{LoadingAPI:{ready(){}},GameplayAPI:{start(){},stop(){}}},on(){},getPlayer:async()=>({getData:async()=>({}),setData:async()=>{}}),adv:{showFullscreenAdv(){}}})};
+JS
+            local profile="$(mktemp -d)"
+            "$BROWSER" --headless=new --no-sandbox --disable-dev-shm-usage --use-angle=swiftshader --enable-unsafe-swiftshader --autoplay-policy=no-user-gesture-required --window-size=1280,720 --remote-debugging-address=127.0.0.1 --remote-debugging-port="$port" --user-data-dir="$profile" "http://127.0.0.1:8765/index.html?promo=${mission}" >/tmp/${lang}-${mission}.out 2>/tmp/${lang}-${mission}.log &
+            local pid=$!
+            CDP_PORT="$port" MISSION="$mission" OUT="$outfile" node /tmp/capture.js
+            kill "$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+            rm -rf "$profile"
+          }
+
+          missions=(HAIL CERADSE JOLDAR MOEBO NEROD ODEON JUPITER EARTH)
+          idx=0
+          for lang in ru en; do
+            for mission in "${missions[@]}"; do
+              idx=$((idx+1))
+              port=$((9300+idx))
+              capture_one "$lang" "$mission" "$port" "screenshots/$lang/$(printf '%02d' $(((idx-1)%8+1)))_${mission}.png"
+            done
+          done
+          rm -f dist/sdk.js
+
+          python3 - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          for p in Path('screenshots').rglob('*.png'):
+              im=Image.open(p)
+              assert im.size == (1280,720), (p,im.size)
+              print(p, im.size)
+          assert len(list(Path('screenshots/ru').glob('*.png'))) == 8
+          assert len(list(Path('screenshots/en').glob('*.png'))) == 8
+          PY
+
+      - name: Upload multi-mission screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: starfighter-yandex-multi-mission-screenshots
+          path: screenshots/
+          retention-days: 7
