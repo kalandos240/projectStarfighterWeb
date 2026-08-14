@@ -34,7 +34,6 @@ def parse_po_msgids(text):
 
 def parse_translation_keys(text):
     keys = set()
-    # Translation entries are intentionally kept one entry per line.
     pattern = re.compile(r'^\s*\{\s*("(?:\\.|[^"\\])*")\s*,\s*("(?:\\.|[^"\\])*")\s*\},?\s*$', re.M)
     for match in pattern.finditer(text):
         try:
@@ -58,21 +57,24 @@ for path in [root / 'web/web_i18n.c.txt', *sorted((root / 'web').glob('i18n-*.in
     if path.exists():
         translated |= parse_translation_keys(path.read_text(encoding='utf-8'))
 
-# These are handled in the dedicated plural bridge rather than the simple table.
 plural_bridge = (root / 'web/web_ngettext.c.txt').read_text(encoding='utf-8') if (root / 'web/web_ngettext.c.txt').exists() else ''
 plural_keys = {
     'Got $%d',
     'Got %d rocket',
     'Got %d plasma cell',
+    'Rescued %d slave',
+    'SURVIVAL FOR %d minute',
+    'TIME LIMIT: %d minute',
     'Collect $%d more...\n$%d more to collect...\nJust $%d more needed...\nCollect just $%d more...',
     'Collect %d more cargo pod...\n%d more cargo pod to collect...\n%d more cargo pod needed...\nCollect just %d more cargo pod...\nOnly %d cargo pod left to collect...',
     'Collect %d more piece of ore...\n%d more piece of ore to collect...\n%d more piece of ore needed...\nCollect just %d more piece...',
     'Destroy %d more target...\n%d more target to destroy...\n%d target remains...\nDestroy just %d more...\nOnly %d target left...\nDestroy %d last target...',
+    'Disable %d more target...\n%d more target to disable...\nDisable just %d more...\nDisable %d last target...',
+    'Rescue %d more slave...\nRescue at least %d more slave...\nAt least %d more slave to rescue...\nAt least %d more rescued slave needed...',
 }
 if plural_bridge:
-    translated |= {key for key in plural_keys if key.split('\n', 1)[0].split('%d', 1)[0].strip() in plural_bridge or key in plural_bridge}
+    translated |= plural_keys
 
-# Font path is an implementation hook, not visible UI text in the web build.
 ignored = {'data/TakaoPGothic.ttf'}
 missing = sorted(msgids - translated - ignored)
 
