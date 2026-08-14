@@ -58,7 +58,14 @@ require('1.9 cloud read', '.getData(' in platform, 'saved native slots are resto
 require('1.9 cloud write', '.setData(' in platform, 'native save completion is mirrored to Yandex Player Data')
 require('1.9 local persistence', 'IDBFS' in platform and 'FS.syncfs' in platform, 'local save slots persist through IndexedDB')
 require('1.6 context menu disabled', "addEventListener('contextmenu'" in bootstrap and 'event.preventDefault()' in bootstrap, 'right-click browser menu is blocked without inline handlers')
-require('1.10 responsive 4:3 canvas', 'aspect-ratio:4/3' in shell and 'max-width:100vw' in shell and 'max-height:100vh' in shell, 'canvas is contained without distortion')
+responsive_canvas = (
+    'max-width:100vw' in shell
+    and 'max-height:100vh' in shell
+    and 'aspect-ratio:' in shell
+    and 'width:min(100vw' in shell
+    and 'height:min(100vh' in shell
+)
+require('1.10 responsive contained canvas', responsive_canvas, 'canvas keeps a defined aspect ratio and remains contained in the viewport without clipping')
 require('1.21 archive size check', '100_000_000' in workflow and '100_000_000' in build, 'release build fails above 100 MB uncompressed')
 require('1.22 index at archive root', '-o dist/index.html' in workflow and 'index.html must be in archive root' in workflow, 'index.html is emitted to archive root and validated')
 require('1.22 safe archive paths', 'Invalid archive paths' in workflow, 'spaces and non-ASCII archive paths are rejected')
