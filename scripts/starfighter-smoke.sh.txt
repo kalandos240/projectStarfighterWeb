@@ -43,10 +43,27 @@ globalThis.YaGames = {
 };
 JS
 
-python3 -m http.server 8765 --directory dist >dist/runtime-server.log 2>&1 &
+cat > /tmp/starfighter-csp-server.py <<'PY'
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
+from pathlib import Path
+import os
+
+CSP = "default-src 'self' data: blob:; script-src 'nonce-starfighter-csp-test' 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' data: blob:; worker-src 'self' blob:; font-src 'self' data:;"
+
+class Handler(SimpleHTTPRequestHandler):
+    def end_headers(self):
+        self.send_header('Content-Security-Policy', CSP)
+        self.send_header('Cache-Control', 'no-store')
+        super().end_headers()
+
+os.chdir(Path('dist'))
+ThreadingHTTPServer(('127.0.0.1', 8765), Handler).serve_forever()
+PY
+
+python3 /tmp/starfighter-csp-server.py >dist/runtime-server.log 2>&1 &
 SERVER_PID=$!
 TARGET_URL="http://127.0.0.1:8765/index.html"
-echo "Testing Yandex-mocked launch: $TARGET_URL"
+echo "Testing Yandex-mocked CSP launch: $TARGET_URL"
 
 PROFILE_DIR="$(mktemp -d)"
 mkdir -p "$PROFILE_DIR/Default"
@@ -114,3 +131,11 @@ if grep -Eqi 'Aborted\(|RuntimeError:|unhandled exception|failed to asynchronous
   cat dist/runtime-browser.log >&2
   exit 1
 fi
+
+if grep -Eqi 'Refused to execute inline script|Refused to load .*Content Security Policy|violates the following Content Security Policy directive' dist/runtime-browser.log; then
+  echo "CSP violation detected in browser log" >&2
+  cat dist/runtime-browser.log >&2
+  exit 1
+fi
+
+echo "Strict nonce CSP runtime test passed with no blocked game scripts"
