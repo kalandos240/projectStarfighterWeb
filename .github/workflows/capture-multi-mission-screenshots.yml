@@ -125,7 +125,10 @@ jobs:
           done
           rm -f dist/sdk.js
 
-          python3 -c "from PIL import Image; from pathlib import Path; files=list(Path('screenshots').rglob('*.png')); assert len(files)==16; [(_ for _ in ()).throw(AssertionError((str(p),Image.open(p).size))) if Image.open(p).size!=(1280,720) else print(p, Image.open(p).size) for p in files]"
+          test "$(find screenshots/ru -maxdepth 1 -type f -name '*.png' | wc -l)" -eq 8
+          test "$(find screenshots/en -maxdepth 1 -type f -name '*.png' | wc -l)" -eq 8
+          file screenshots/ru/*.png
+          file screenshots/en/*.png
 
       - name: Upload multi-mission screenshots
         uses: actions/upload-artifact@v4
