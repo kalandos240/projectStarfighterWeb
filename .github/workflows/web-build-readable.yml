@@ -46,8 +46,6 @@ jobs:
           python3 /tmp/patch_web.py
           cp scripts/patch_menu_marker.py.txt /tmp/patch_menu_marker.py
           python3 /tmp/patch_menu_marker.py
-          cp scripts/patch_unicode_web.py.txt /tmp/patch_unicode_web.py
-          python3 /tmp/patch_unicode_web.py
 
       - name: Build standalone browser target
         run: |
@@ -57,13 +55,13 @@ jobs:
             -Iupstream/src \
             -DVERSION='"2.5-web1"' \
             -DDATADIR='"/"' \
+            -DNOFONT \
             -O2 \
             -sUSE_SDL=2 \
             -sUSE_SDL_IMAGE=2 \
             -sSDL2_IMAGE_FORMATS='["png","jpg"]' \
             -sUSE_SDL_MIXER=2 \
             -sSDL2_MIXER_FORMATS='["ogg"]' \
-            -sUSE_SDL_TTF=2 \
             -sASYNCIFY \
             -sALLOW_MEMORY_GROWTH=1 \
             -sFORCE_FILESYSTEM=1 \
