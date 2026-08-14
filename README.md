@@ -1,111 +1,173 @@
-# Project: Starfighter — Web / Yandex Games
+<div align="center">
+
+# 🚀 Project: Starfighter — Web / Yandex Games
+
+**Браузерный WebAssembly/HTML5-порт свободной игры Project: Starfighter для Яндекс.Игр**
 
 [![WebAssembly build](https://github.com/kalandos240/projectStarfighterWeb/actions/workflows/web-build-readable.yml/badge.svg)](https://github.com/kalandos240/projectStarfighterWeb/actions/workflows/web-build-readable.yml)
 [![Russian localization audit](https://github.com/kalandos240/projectStarfighterWeb/actions/workflows/i18n-audit.yml/badge.svg)](https://github.com/kalandos240/projectStarfighterWeb/actions/workflows/i18n-audit.yml)
+![WebAssembly](https://img.shields.io/badge/WebAssembly-Emscripten-654FF0?logo=webassembly&logoColor=white)
+![Platform](https://img.shields.io/badge/platform-Yandex%20Games-FFCC00)
+![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)
 
-Browser/WebAssembly port of **Project: Starfighter** for **Yandex Games**.
+**Русский** · [English](README_EN.md) · [Документация](docs/README.md) · [Оригинальный проект](https://github.com/pr-starfighter/starfighter)
 
-This repository preserves the original libre game and gameplay while adapting the SDL2 desktop codebase to WebAssembly, browser persistence, Russian localization and the Yandex Games SDK.
+</div>
 
-## Upstream
+---
 
-- Project: [pr-starfighter/starfighter](https://github.com/pr-starfighter/starfighter)
-- Pinned upstream commit: `315d0456723e19a153dbc5ef37d5cfb27b4cb36c`
-- CI fetches that exact upstream revision for every release build.
-- Browser-specific changes are applied reproducibly from the patch and bridge files in this repository.
+## О проекте
 
-## Release status
+Этот репозиторий содержит браузерный порт **Project: Starfighter** — классического космического shoot ’em up, изначально созданного Parallel Realities. Современная свободная версия игры развивается проектом [`pr-starfighter/starfighter`](https://github.com/pr-starfighter/starfighter).
 
-The web port is code-complete as a Yandex Games release candidate and is continuously tested in Chromium.
+Цель этого репозитория — сохранить оригинальный игровой процесс и свободные ресурсы, но адаптировать SDL2-версию для запуска в браузере и публикации на **Яндекс.Играх**.
 
-Validated automatically:
+Порт собирается через **Emscripten** в WebAssembly и запускается непосредственно через `index.html`. Релиз не требует собственного игрового сервера.
 
-- Emscripten/WebAssembly build of the original C/SDL2 game.
-- SDL2 rendering, SDL2_image graphics and SDL2_mixer OGG music/sound.
-- Direct `file://index.html` startup, matching the standalone archive deployment model.
-- Original title sequence, main menu, new-game flow, difficulty selection and entry into real mission gameplay.
-- Browser-native UTF-8/Cyrillic rendering with compact web-specific briefing labels.
-- Complete Russian coverage of the active upstream gettext catalog: **0 missing translatable entries** in the strict POT audit.
-- Legacy `-oldscript` dialogue is not exposed by the browser build; the active web campaign uses the audited localized script.
-- Yandex SDK loading from `/sdk.js`.
-- `LoadingAPI.ready()` after the game becomes interactive.
-- `GameplayAPI.start()` / `GameplayAPI.stop()` around real mission gameplay.
-- Gameplay markup is stopped while the platform is paused or a fullscreen ad is open and resumed only when appropriate.
-- `game_api_pause` / `game_api_resume` handling with game-loop and audio pause support.
-- IDBFS local persistence across a full page reload.
-- Yandex Player Data cloud backup/restore for Starfighter save slots, with timestamp conflict protection.
-- Fullscreen interstitial hook at mission boundaries only, never during active combat.
-- Release payload validation: `index.html` in archive root, ASCII paths without spaces and uncompressed size below 100 MB.
-- Runtime-only asset staging: unused font data and `music/sources` project files are excluded from the shipped game.
-- GPL and asset attribution notices included in the release archive.
+> Этот репозиторий является отдельным web-портом и не является официальным проектом Яндекса или команды upstream Project: Starfighter.
 
-A validated release build currently packages **5 files**, approximately **34.9 MB compressed** and **48.0 MB uncompressed**.
+## ✨ Что уже реализовано
 
-## Browser controls
+- 🎮 оригинальный игровой процесс Project: Starfighter на базе C/SDL2;
+- 🌐 сборка в WebAssembly/HTML5 через Emscripten;
+- 📦 автономный релиз с `index.html` в корне архива;
+- 🇷🇺 русская локализация активного игрового контента;
+- 🖥️ управление с клавиатуры и мыши, адаптированное для браузера;
+- 💾 локальные сохранения через IDBFS;
+- ☁️ резервное сохранение и восстановление через Yandex Player Data;
+- 🟨 интеграция Yandex Games SDK;
+- ⏯️ корректная работа `LoadingAPI` и `GameplayAPI`;
+- 📢 полноэкранная реклама только на безопасных границах между игровыми этапами;
+- 🔇 пауза игрового цикла и звука во время платформенной паузы/рекламы;
+- 🧪 автоматический smoke-test реального игрового сценария в Chromium;
+- 📏 автоматическая проверка структуры ZIP и ограничения размера релизного пакета;
+- ⚖️ сохранение лицензий и атрибуции свободных игровых ресурсов.
 
-| Action | Controls |
+## 🎯 Статус порта
+
+Порт находится в состоянии **release candidate для Яндекс.Игр**. Основной CI-пайплайн собирает настоящий WebAssembly-релиз и прогоняет браузерный сценарий от стартового экрана до входа в реальную миссию.
+
+Последняя проверенная сборка CI успешно прошла 14 августа 2026 года. Актуальное состояние всегда видно по бейджам в верхней части README.
+
+Перед публичным релизом остаётся обязательная проверка уже внутри реального окружения Яндекс.Игр: SDK, авторизация игрока, реклама, облачные сохранения и модерация платформы.
+
+## 🕹️ Управление в браузере
+
+| Действие | Управление |
 |---|---|
-| Move | `WASD` or arrow keys |
-| Primary fire | `Space` or left mouse button |
-| Secondary weapon | `Ctrl` or right mouse button |
-| Switch weapon | `E` or `Shift` |
-| Pause | `Esc` |
+| Движение | `WASD` или стрелки |
+| Основной огонь | `Space` или левая кнопка мыши |
+| Дополнительное оружие | `Ctrl` или правая кнопка мыши |
+| Смена оружия | `E` или `Shift` |
+| Пауза | `Esc` |
 
-The loading screen also shows the web control scheme before gameplay starts.
+Схема управления также показывается на загрузочном экране web-версии.
 
-## Build pipeline
+## 📦 Релиз для Яндекс.Игр
 
-`.github/workflows/web-build-readable.yml` is the canonical release build. It:
+CI формирует архив `starfighter-yandexgames.zip`. В релизе `index.html` расположен непосредственно в корне архива, а игровые ресурсы и WebAssembly-код встраиваются в страницу.
 
-1. Checks out this repository and the exact pinned upstream revision.
-2. Runs the strict Russian localization audit against upstream `pr-starfighter.pot`.
-3. Installs Emscripten.
-4. Applies the browser/Yandex source patches.
-5. Stages only runtime graphics, sound, music and credits data.
-6. Builds a single-file `dist/index.html` WebAssembly release.
-7. Runs headless Chromium through title → menu → new game → difficulty → real mission gameplay.
-8. Verifies Yandex GameplayAPI pause/resume semantics, Player Data cloud-save writes and fullscreen-ad lifecycle with a deterministic SDK test double.
-9. Persists an IDBFS marker, reloads the page and verifies it survived.
-10. Validates archive paths and the uncompressed Yandex payload limit.
-11. Packages `starfighter-yandexgames.zip` and uploads the release plus QA diagnostics as a workflow artifact.
+Основная структура релизного пакета:
 
-The fast `.github/workflows/i18n-audit.yml` workflow separately prevents untranslated upstream catalog entries from being introduced without waiting for a full WebAssembly build.
+```text
+starfighter-yandexgames.zip
+├── index.html
+├── COPYING
+├── LICENSES
+├── CREDITS.txt
+└── IPA_FONT_LICENSE.txt
+```
 
-## Port architecture
+Такой формат уменьшает количество внешних runtime-зависимостей и позволяет запускать игру напрямую через `index.html`.
 
-- `web/shell.html` — Emscripten page shell, responsive 4:3 canvas, loading/control hint and mission-boundary ad helper.
-- `web/platform-pre-release.txt` — production Yandex lifecycle, GameplayAPI, IDBFS and cloud-save bridge.
-- `web/web_i18n.c.txt` and `web/i18n-*.inc` — browser Russian translation catalog.
-- `web/web_ngettext.c.txt` — browser Russian plural/quantity strings.
-- `scripts/audit_i18n.py.txt` — strict comparison against the pinned upstream gettext POT catalog.
-- `scripts/patch_web_release.py.txt` — browser/Yandex adaptations applied to the pinned upstream C source.
-- `scripts/patch_browser_text.py.txt` — Pango-free Canvas UTF-8/Cyrillic renderer used by the WebAssembly build.
-- `scripts/patch_web_controls.py.txt` — web keyboard/mouse control mapping.
-- `scripts/patch_ads.py.txt` — mission-boundary advertisement hook.
-- `scripts/cdp-smoke.js.txt` — end-to-end Chromium runtime and platform-integration QA.
-- `web/build.sh` — local release build matching the CI pipeline.
-- `docs/` — implementation and Yandex integration notes.
+## 🏗️ Как устроен порт
 
-The current browser build uses Emscripten `ASYNCIFY` as a compatibility layer for the original blocking SDL loops. This preserves the original game flow while allowing browser scheduling and platform pause handling.
+```text
+projectStarfighterWeb/
+├── .github/workflows/     # CI: сборка, тестирование и аудит локализации
+├── docs/                  # документация по порту и Яндекс.Играм
+├── scripts/               # воспроизводимые патчи и QA-скрипты
+├── web/                   # web-shell, Yandex bridge, i18n и build script
+├── UPSTREAM_COMMIT        # зафиксированная ревизия оригинального проекта
+├── README.md              # русская версия
+└── README_EN.md           # English version
+```
 
-## Release archive
+### Ключевые компоненты
 
-The Yandex upload ZIP contains only:
+| Компонент | Назначение |
+|---|---|
+| `web/shell.html` | Emscripten shell, canvas, загрузочный экран и web-интерфейс |
+| `web/platform-pre-release.txt` | Yandex SDK lifecycle, IDBFS и облачные сохранения |
+| `web/web_i18n.c.txt` | браузерный каталог русской локализации |
+| `scripts/patch_web_release.py.txt` | основные браузерные адаптации исходного кода |
+| `scripts/patch_web_controls.py.txt` | клавиатура и мышь для web-сборки |
+| `scripts/patch_ads.py.txt` | интеграция рекламных пауз между миссиями |
+| `scripts/cdp-smoke.js.txt` | end-to-end тестирование в Chromium |
+| `web/build.sh` | локальная сборка релизной web-версии |
 
-- `index.html`
-- `COPYING`
-- `LICENSES`
-- `CREDITS.txt`
-- `IPA_FONT_LICENSE.txt`
+## 🔧 Сборка
 
-Runtime game assets and WebAssembly code are embedded into `index.html`, so there are no fragile external runtime paths apart from the platform-provided `/sdk.js`.
+Канонический способ сборки описан в workflow:
 
-## What still requires the real Yandex environment
+[`web-build-readable.yml`](.github/workflows/web-build-readable.yml)
 
-CI can validate the integration contract and browser runtime, but it cannot impersonate Yandex moderation. Before public release, the generated ZIP still needs to be uploaded to the Yandex Games console and exercised in its real test environment for SDK availability, ads, authenticated Player Data and final moderation behavior.
+Пайплайн:
 
-## Licensing
+1. получает этот репозиторий и зафиксированную upstream-ревизию;
+2. проверяет полноту русской локализации;
+3. устанавливает Emscripten;
+4. применяет web/Yandex-патчи;
+5. подготавливает только runtime-ресурсы;
+6. собирает WebAssembly-релиз;
+7. запускает Chromium smoke-test;
+8. проверяет SDK lifecycle, сохранения и рекламу;
+9. проверяет структуру и размер релизного архива;
+10. публикует готовый ZIP как GitHub Actions artifact.
 
-Project: Starfighter code is distributed under **GNU GPL v3 or later**. Individual graphics, music, sound and font assets use several libre licenses documented by upstream in `LICENSES`.
+Для локальной сборки используется:
 
-This web port keeps the upstream licensing notices, identifies the exact source revision used to build the game, and publishes the browser-specific source/patches required to reproduce the modified build.
+```bash
+bash web/build.sh
+```
+
+Для воспроизводимой сборки требуется окружение Emscripten и зависимости, которые устанавливает CI.
+
+## 📚 Документация
+
+- [`docs/PORTING.md`](docs/PORTING.md) — устройство и технические решения web-порта;
+- [`docs/YANDEX.md`](docs/YANDEX.md) — интеграция с Yandex Games SDK;
+- [`docs/MODERATION.md`](docs/MODERATION.md) — заметки и проверки перед модерацией;
+- [`docs/README.md`](docs/README.md) — общий индекс документации на русском и английском.
+
+## 🔗 Upstream
+
+Порт не хранит отдельную изменённую копию всей кодовой базы оригинальной игры. Вместо этого CI получает конкретную зафиксированную upstream-ревизию и воспроизводимо применяет web-патчи из этого репозитория.
+
+- **Upstream:** [`pr-starfighter/starfighter`](https://github.com/pr-starfighter/starfighter)
+- **Pinned commit:** `315d0456723e19a153dbc5ef37d5cfb27b4cb36c`
+- **Файл фиксации:** [`UPSTREAM_COMMIT`](UPSTREAM_COMMIT)
+
+## ⚖️ Лицензирование
+
+Исходный код Project: Starfighter распространяется на условиях **GNU GPL v3 или более поздней версии**. Графика, музыка, звуки и шрифты имеют собственные свободные лицензии, перечисленные upstream-проектом в `LICENSES`.
+
+Релизный архив сохраняет необходимые файлы лицензий и атрибуции. Этот репозиторий также фиксирует точную upstream-ревизию и содержит исходники/патчи, необходимые для воспроизведения изменённой web-сборки.
+
+## ❤️ Благодарности
+
+Спасибо:
+
+- **Parallel Realities** — за оригинальный Project: Starfighter;
+- участникам **pr-starfighter** — за поддерживаемую полностью свободную версию игры;
+- авторам свободных графических, музыкальных, звуковых и шрифтовых ресурсов, перечисленным в upstream credits.
+
+---
+
+<div align="center">
+
+**Project: Starfighter → WebAssembly → Yandex Games**
+
+[English README](README_EN.md) · [Техническая документация](docs/README.md)
+
+</div>
