@@ -62,6 +62,7 @@ emcc "${SOURCES[@]}" \
   -sEXPORTED_FUNCTIONS='["_main","_save"]' \
   -lidbfs.js \
   --pre-js "$PORT_ROOT/web/platform-pre-release.txt" \
+  --pre-js "$PORT_ROOT/web/yandex-language-gate.txt" \
   --embed-file "$ASSETS/data@/data" \
   --embed-file "$ASSETS/gfx@/gfx" \
   --embed-file "$ASSETS/sound@/sound" \
