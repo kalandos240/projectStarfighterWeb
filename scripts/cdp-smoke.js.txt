@@ -169,8 +169,6 @@ async function main() {
   console.log('Yandex GameplayAPI state follows gameplay pause/resume');
 
   await evaluate(`(() => {
-    const autosave = '/home/web_user/.config/starfighter/save00.sav';
-    if (!FS.analyzePath(autosave).exists) throw new Error('Expected Starfighter autosave before cloud QA');
     globalThis.starfighterPlayer = {
       setData: async function(payload, flush) {
         globalThis.__qaCloudPayload = payload;
@@ -178,11 +176,12 @@ async function main() {
       }
     };
     globalThis.starfighterSdkPromise = Promise.resolve(globalThis.starfighterYsdk);
-    globalThis.starfighterScheduleCloudPush();
+    if (!Module['_save']) throw new Error('Exported Starfighter save() function is unavailable');
+    Module['_save'](5);
     return true;
   })()`);
-  await waitFor(`document.documentElement.getAttribute('data-starfighter-cloud-saved') === '1' && document.documentElement.getAttribute('data-qa-cloud-flush') === '1' && globalThis.__qaCloudPayload && globalThis.__qaCloudPayload.starfighterCloudSaveV1 && globalThis.__qaCloudPayload.starfighterCloudSaveV1.version === 1 && typeof globalThis.__qaCloudPayload.starfighterCloudSaveV1.files['save00.sav'] === 'string'`, 'Yandex cloud save bridge with native autosave', 5000);
-  console.log('Yandex Player Data cloud-save bridge wrote the native Starfighter autosave');
+  await waitFor(`document.documentElement.getAttribute('data-starfighter-cloud-saved') === '1' && document.documentElement.getAttribute('data-qa-cloud-flush') === '1' && globalThis.__qaCloudPayload && globalThis.__qaCloudPayload.starfighterCloudSaveV1 && globalThis.__qaCloudPayload.starfighterCloudSaveV1.version === 1 && typeof globalThis.__qaCloudPayload.starfighterCloudSaveV1.files['save05.sav'] === 'string'`, 'native Starfighter save to Yandex cloud bridge', 5000);
+  console.log('Native Starfighter save() reached Yandex Player Data cloud bridge');
 
   await evaluate(`(() => {
     globalThis.starfighterGameplayStop();
