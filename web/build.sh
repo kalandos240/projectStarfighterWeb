@@ -26,6 +26,9 @@ mkdir -p "$OUT" "$ASSETS/data" "$ASSETS/gfx" "$ASSETS/sound" "$ASSETS/music"
 
 cd "$PORT_ROOT"
 python3 scripts/patch_hardcoded_ui.py.txt
+python3 scripts/patch_shop_buttons.py.txt
+python3 scripts/patch_shop_performance.py.txt
+python3 scripts/patch_hd_output.py.txt
 python3 scripts/audit_i18n.py.txt --strict --strict-ui
 python3 scripts/audit_yandex.py.txt
 python3 scripts/patch_web_release.py.txt
@@ -90,6 +93,7 @@ inline = [(attrs, body[:80]) for attrs, body in scripts if not re.search(src_pat
 handlers = re.findall(r'\son[a-z]+\s*=\s*["\']', html, flags=re.I)
 assert not inline, f'Inline scripts are forbidden by Yandex nonce CSP: {inline}'
 assert not handlers, 'Inline event handlers are forbidden by Yandex nonce CSP'
+assert 'aspect-ratio:16/9' in html, 'widescreen shell missing from built HTML'
 
 diagnostics = {'i18n-audit.txt', 'yandex-moderation-audit.txt'}
 release = [p for p in root.rglob('*') if p.is_file() and not p.name.startswith('runtime-') and p.name not in diagnostics and p.name != 'sdk.js']
@@ -107,5 +111,5 @@ rm -f "$PORT_ROOT/starfighter-yandexgames.zip" "$OUT/sdk.js"
   zip -9 -r "$PORT_ROOT/starfighter-yandexgames.zip" . -x 'runtime-*' -x 'i18n-audit.txt' -x 'yandex-moderation-audit.txt'
 )
 
-echo "CSP-safe web build created in $OUT"
+echo "CSP-safe widescreen web build created in $OUT"
 echo "Yandex archive created at $PORT_ROOT/starfighter-yandexgames.zip"
