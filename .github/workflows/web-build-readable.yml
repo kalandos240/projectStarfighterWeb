@@ -26,6 +26,12 @@ jobs:
           ref: 315d0456723e19a153dbc5ef37d5cfb27b4cb36c
           path: upstream
 
+      - name: Audit Russian localization coverage
+        run: |
+          mkdir -p dist
+          cp scripts/audit_i18n.py.txt /tmp/audit_i18n.py
+          python3 /tmp/audit_i18n.py
+
       - name: Checkout Emscripten SDK
         uses: actions/checkout@v6
         with:
@@ -88,7 +94,7 @@ jobs:
       - name: Package Yandex Games archive
         run: |
           cd dist
-          zip -9 -r ../starfighter-yandexgames.zip . -x 'runtime-*'
+          zip -9 -r ../starfighter-yandexgames.zip . -x 'runtime-*' -x 'i18n-audit.txt'
           cd ..
           unzip -l starfighter-yandexgames.zip
           ls -lh starfighter-yandexgames.zip
