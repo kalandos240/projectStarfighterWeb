@@ -25,7 +25,8 @@ rm -rf "$OUT" "$ASSETS"
 mkdir -p "$OUT" "$ASSETS/data" "$ASSETS/gfx" "$ASSETS/sound" "$ASSETS/music"
 
 cd "$PORT_ROOT"
-python3 scripts/audit_i18n.py.txt --strict
+python3 scripts/patch_hardcoded_ui.py.txt
+python3 scripts/audit_i18n.py.txt --strict --strict-ui
 python3 scripts/patch_web_release.py.txt
 python3 scripts/patch_menu_marker.py.txt
 
