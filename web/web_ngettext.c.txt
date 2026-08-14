@@ -27,14 +27,26 @@ const char *starfighter_web_ngettext(const char *singular, const char *plural, u
         return "Получено ракет: %d";
     if ((singular != NULL) && strstr(singular, "plasma cell") != NULL)
         return "Получено плазменных ячеек: %d";
+    if ((singular != NULL) && strcmp(singular, "Rescued %d slave") == 0)
+        return "Спасено: %d";
+
     if (starfighter_starts_with(singular, "Collect $%d more"))
         return "Осталось собрать: $%d...";
     if (starfighter_starts_with(singular, "Collect %d more cargo pod"))
         return "Осталось контейнеров: %d...";
     if (starfighter_starts_with(singular, "Collect %d more piece of ore"))
         return "Осталось руды: %d...";
-    if ((singular != NULL) && strstr(singular, "target") != NULL)
-        return "Осталось целей: %d...";
+    if (starfighter_starts_with(singular, "Destroy %d more target"))
+        return "Осталось уничтожить целей: %d...";
+    if (starfighter_starts_with(singular, "Disable %d more target"))
+        return "Осталось обездвижить целей: %d...";
+    if (starfighter_starts_with(singular, "Rescue %d more slave"))
+        return "Осталось спасти: %d...";
+
+    if (starfighter_starts_with(singular, "SURVIVAL FOR %d minute"))
+        return "ВЫЖИТЬ: %d МИН.";
+    if (starfighter_starts_with(singular, "TIME LIMIT: %d minute"))
+        return "ЛИМИТ ВРЕМЕНИ: %d МИН.";
 
     return source;
 }
