@@ -26,11 +26,14 @@ jobs:
           ref: 315d0456723e19a153dbc5ef37d5cfb27b4cb36c
           path: upstream
 
+      - name: Apply web UI localization patches
+        run: python3 scripts/patch_hardcoded_ui.py.txt
+
       - name: Audit Russian localization coverage
         run: |
           mkdir -p dist
           cp scripts/audit_i18n.py.txt /tmp/audit_i18n.py
-          python3 /tmp/audit_i18n.py --strict
+          python3 /tmp/audit_i18n.py --strict --strict-ui
 
       - name: Checkout Emscripten SDK
         uses: actions/checkout@v6
