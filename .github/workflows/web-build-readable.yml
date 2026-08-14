@@ -35,6 +35,9 @@ jobs:
           cp scripts/audit_i18n.py.txt /tmp/audit_i18n.py
           python3 /tmp/audit_i18n.py --strict --strict-ui
 
+      - name: Audit Yandex Games moderation integration
+        run: python3 scripts/audit_yandex.py.txt
+
       - name: Checkout Emscripten SDK
         uses: actions/checkout@v6
         with:
@@ -107,7 +110,7 @@ jobs:
           test -s dist/index.html
           du -ah dist | sort -h | tail -n 20
 
-      - name: Direct file Chromium runtime smoke test
+      - name: Yandex-mocked Chromium runtime smoke test
         run: |
           cp scripts/starfighter-smoke.sh.txt /tmp/starfighter-smoke.sh
           bash /tmp/starfighter-smoke.sh
@@ -118,7 +121,8 @@ jobs:
           from pathlib import Path
 
           root = Path('dist')
-          release = [p for p in root.rglob('*') if p.is_file() and not p.name.startswith('runtime-') and p.name != 'i18n-audit.txt']
+          diagnostics = {'i18n-audit.txt', 'yandex-moderation-audit.txt'}
+          release = [p for p in root.rglob('*') if p.is_file() and not p.name.startswith('runtime-') and p.name not in diagnostics]
           assert (root / 'index.html') in release, 'index.html must be in archive root'
 
           bad = []
@@ -138,7 +142,7 @@ jobs:
       - name: Package Yandex Games archive
         run: |
           cd dist
-          zip -9 -r ../starfighter-yandexgames.zip . -x 'runtime-*' -x 'i18n-audit.txt'
+          zip -9 -r ../starfighter-yandexgames.zip . -x 'runtime-*' -x 'i18n-audit.txt' -x 'yandex-moderation-audit.txt'
           cd ..
           unzip -l starfighter-yandexgames.zip
           ls -lh starfighter-yandexgames.zip
