@@ -108,7 +108,8 @@ jobs:
             CDP_PORT="$port" MISSION="$mission" OUT="$outfile" node scripts/capture_multi_mission.js
             kill "$pid" 2>/dev/null || true
             wait "$pid" 2>/dev/null || true
-            rm -rf "$profile"
+            sleep 0.2
+            rm -rf "$profile" 2>/dev/null || true
           }
 
           missions=(HAIL CERADSE JOLDAR MOEBO NEROD ODEON JUPITER EARTH)
