@@ -1,0 +1,75 @@
+from pathlib import Path
+import sys
+
+root = Path('.')
+
+
+def text(path):
+    p = root / path
+    if not p.exists():
+        raise SystemExit(f'Missing required file: {path}')
+    return p.read_text(encoding='utf-8', errors='replace')
+
+
+def require(label, condition, detail):
+    status = 'PASS' if condition else 'FAIL'
+    results.append((status, label, detail))
+    if not condition:
+        failures.append(label)
+
+
+results = []
+failures = []
+
+shell = text('web/shell.html')
+platform = text('web/platform-pre-release.txt')
+gate = text('web/yandex-language-gate.txt')
+workflow = text('.github/workflows/web-build-readable.yml')
+build = text('web/build.sh')
+patch_release = text('scripts/patch_web_release.py.txt')
+patch_ads = text('scripts/patch_ads.py.txt')
+patch_ready = text('scripts/patch_loading_ready.py.txt')
+menu_patch = text('scripts/patch_menu_marker.py.txt')
+
+require('1.19.1 SDK loader path', '<script src="/sdk.js"></script>' in shell, 'Yandex-hosted archive uses /sdk.js')
+require('1.19.1 YaGames.init', 'YaGames.init()' in platform, 'SDK initializes through YaGames.init()')
+require('2.14 Yandex language source', 'environment.i18n.lang' in gate and 'ysdk.environment.i18n.lang' in gate, 'native UI is gated on Yandex SDK language')
+require('2.14 language gate is compiled', '--pre-js web/yandex-language-gate.txt' in workflow and 'yandex-language-gate.txt' in build, 'release build includes language startup gate')
+require('1.19.2 Game Ready API', 'LoadingAPI.ready()' in platform, 'LoadingAPI.ready() is integrated')
+require('1.19.2 Game Ready after first frame', 'data-starfighter-first-frame' in patch_ready and 'starfighterPlatformReady' in patch_ready and "patch_loading_ready.py.txt" in menu_patch, 'ready() hook is moved to first rendered interactive title frame')
+require('1.19.3 GameplayAPI start', 'GameplayAPI.start()' in platform and 'starfighterGameplayStart' in patch_release, 'gameplay start is marked at actual mission gameplay')
+require('1.19.3 GameplayAPI stop', 'GameplayAPI.stop()' in platform and 'starfighterGameplayStop' in patch_release, 'menus/pause/end stop gameplay marking')
+require('1.3 platform pause events', "game_api_pause" in platform and "game_api_resume" in platform, 'Yandex pause/resume events are handled')
+require('1.3 browser focus pause fallback', 'visibilitychange' in shell and "window.addEventListener('blur'" in shell, 'tab hide/blur pauses the platform state')
+require('4.7 ad pauses game', 'setStarfighterPlatformPaused(true)' in shell and 'onOpen' in shell and 'onClose' in shell, 'fullscreen-ad lifecycle pauses then resumes game/audio')
+require('4.4 ad only on mission end', 'starfighterMissionEnded' in patch_ads and 'case 2:' in patch_ads, 'interstitial request is hooked after mission gameplay returns')
+require('4.5 no rewarded ads', 'showRewardedVideo' not in ''.join(p.read_text(encoding='utf-8', errors='ignore') for p in root.rglob('*') if p.is_file() and p.stat().st_size < 2_000_000), 'rewarded-ad consent requirement is not applicable because rewarded ads are absent')
+require('1.9 Player object', 'getPlayer()' in platform, 'cloud bridge obtains the Yandex Player object')
+require('1.9 cloud read', '.getData(' in platform, 'saved native slots are restored from Yandex Player Data')
+require('1.9 cloud write', '.setData(' in platform, 'native save completion is mirrored to Yandex Player Data')
+require('1.9 local persistence', 'IDBFS' in platform and 'FS.syncfs' in platform, 'local save slots persist through IndexedDB')
+require('1.6 context menu disabled', 'oncontextmenu="event.preventDefault()"' in shell and "addEventListener('contextmenu'" in shell, 'right-click browser menu is blocked in the game area')
+require('1.10 responsive 4:3 canvas', 'aspect-ratio:4/3' in shell and 'max-width:100vw' in shell and 'max-height:100vh' in shell, 'canvas is contained without distortion')
+require('1.21 archive size check', '100_000_000' in workflow and '100_000_000' in build, 'release build fails above 100 MB uncompressed')
+require('1.22 index at archive root', '-o dist/index.html' in workflow and 'index.html must be in archive root' in workflow, 'index.html is emitted to archive root and validated')
+require('1.22 safe archive paths', 'Invalid archive paths' in workflow, 'spaces and non-ASCII archive paths are rejected')
+require('3.5 legal notices packaged', 'upstream/COPYING upstream/LICENSES dist/' in workflow and 'copy_legal_notices.py.txt' in menu_patch, 'GPL/license/credits notices are included')
+require('2.10 strict Russian gettext audit', '--strict --strict-ui' in workflow, 'release build requires zero untranslated catalog and hardcoded UI strings')
+require('1.14 runtime smoke test', 'starfighter-smoke.sh.txt' in workflow, 'release build launches the game in Chromium and enters gameplay')
+
+# The game has no embedded video UI, so the system-video-player checklist item is N/A.
+video_markup = any(token in shell.lower() for token in ('<video', '<iframe'))
+require('1.6 system video player N/A', not video_markup, 'no video/iframe content exists in the game shell')
+
+report = root / 'dist/yandex-moderation-audit.txt'
+report.parent.mkdir(parents=True, exist_ok=True)
+with report.open('w', encoding='utf-8') as fp:
+    fp.write('Project: Starfighter — Yandex Games static moderation audit\n\n')
+    for status, label, detail in results:
+        fp.write(f'[{status}] {label}: {detail}\n')
+    fp.write(f'\nStatic checks: {len(results)}\nFailures: {len(failures)}\n')
+    fp.write('\nManual Draft/Debug Panel checks remain mandatory and are documented in docs/MODERATION.md.\n')
+
+print(report.read_text(encoding='utf-8'))
+if failures:
+    raise SystemExit('Yandex moderation static audit failed: ' + ', '.join(failures))
