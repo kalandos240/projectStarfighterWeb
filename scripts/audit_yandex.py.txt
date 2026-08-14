@@ -34,8 +34,9 @@ menu_patch = text('scripts/patch_menu_marker.py.txt')
 smoke = text('scripts/starfighter-smoke.sh.txt')
 repo_runtime_code = '\n'.join([shell, bootstrap, platform, gate, patch_release, patch_ads])
 
+src_pattern = r'\bsrc\s*=\s*(?:"[^"]+"|\'[^\']+\'|[^\s>]+)'
 script_tags = re.findall(r'<script\b([^>]*)>(.*?)</script>', shell, flags=re.I | re.S)
-all_shell_scripts_external = all(re.search(r'\bsrc\s*=\s*["\'][^"\']+["\']', attrs, flags=re.I) and not body.strip() for attrs, body in script_tags)
+all_shell_scripts_external = all(re.search(src_pattern, attrs, flags=re.I) and not body.strip() for attrs, body in script_tags)
 no_inline_handlers = re.search(r'\son[a-z]+\s*=', shell, flags=re.I) is None
 
 require('1.19.1 SDK loader path', '<script src="/sdk.js"></script>' in shell, 'Yandex-hosted archive uses /sdk.js')
@@ -65,16 +66,12 @@ require('3.5 legal notices packaged', 'cp upstream/COPYING upstream/LICENSES dis
 require('2.10 strict Russian localization audit', '--strict --strict-ui' in workflow, 'release build requires zero untranslated POT and hardcoded visible UI strings')
 require('1.14 runtime smoke test', 'starfighter-smoke.sh.txt' in workflow and 'Starfighter mission gameplay start' in text('scripts/cdp-smoke.js.txt'), 'release build launches the game and requires actual mission gameplay')
 require('1.14 Russian menu screenshot QA', 'runtime-menu-ru.png' in smoke, 'CI captures a menu screenshot with browser=en and Yandex SDK language=ru')
-
-# Yandex wraps archive games in a CSP. Keep all executable game code external so a
-# per-request nonce cannot invalidate our own scripts or inline event handlers.
 require('CSP shell scripts external', all_shell_scripts_external, 'every literal script element in shell.html has src= and no inline body')
 require('CSP no inline event handlers', no_inline_handlers, 'shell.html contains no onclick/oncontextmenu-style JavaScript attributes')
 require('CSP external bootstrap', '<script src="bootstrap.js"></script>' in shell and 'cp web/bootstrap.js dist/bootstrap.js' in workflow, 'browser bootstrap is an external same-origin file in the release archive')
 require('CSP split Emscripten output', '-sSINGLE_FILE' not in workflow and '-sSINGLE_FILE' not in build and '--preload-file' in workflow and '--preload-file' in build, 'Emscripten JS/WASM/data are separate same-origin files instead of inline SINGLE_FILE code')
 require('CSP runtime QA', 'Content-Security-Policy' in smoke and "script-src 'nonce-starfighter-csp-test' 'self' 'unsafe-eval' 'unsafe-inline'" in smoke, 'Chromium smoke test runs under a nonce CSP where unsafe-inline is ineffective')
 
-# The game has no embedded video UI, so the system-video-player checklist item is N/A.
 video_markup = any(token in shell.lower() for token in ('<video', '<iframe'))
 require('1.6 system video player N/A', not video_markup, 'no video/iframe content exists in the game shell')
 
