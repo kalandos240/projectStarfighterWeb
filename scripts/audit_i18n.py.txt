@@ -46,6 +46,33 @@ def parse_translation_keys(text):
     return keys
 
 
+def decode_c_string(raw):
+    try:
+        return ast.literal_eval('"' + raw + '"')
+    except Exception:
+        return raw
+
+
+def scan_hardcoded_ui(src_root):
+    findings = []
+    patterns = [
+        ('gfx_createTextObject', re.compile(r'gfx_createTextObject\s*\(\s*[^,]+,\s*"((?:\\.|[^"\\])*)"', re.S)),
+        ('gfx_renderString', re.compile(r'gfx_renderString\s*\(\s*"((?:\\.|[^"\\])*)"', re.S)),
+        ('gfx_renderUnicode', re.compile(r'gfx_renderUnicode\s*\(\s*"((?:\\.|[^"\\])*)"', re.S)),
+        ('saveSlot strcpy', re.compile(r'strcpy\s*\(\s*saveSlot\s*\[[^\]]+\]\s*,\s*"((?:\\.|[^"\\])*)"', re.S)),
+    ]
+    for path in sorted(src_root.glob('*.c')):
+        text = path.read_text(encoding='utf-8', errors='replace')
+        for kind, pattern in patterns:
+            for match in pattern.finditer(text):
+                value = decode_c_string(match.group(1))
+                if not value or not re.search(r'[A-Za-z]', value):
+                    continue
+                line = text.count('\n', 0, match.start()) + 1
+                findings.append((path.name, line, kind, value))
+    return sorted(set(findings))
+
+
 root = Path('.')
 pot = root / 'upstream/locale/pr-starfighter.pot'
 if not pot.exists():
@@ -77,6 +104,7 @@ if plural_bridge:
 
 ignored = {'data/TakaoPGothic.ttf'}
 missing = sorted(msgids - translated - ignored)
+hardcoded = scan_hardcoded_ui(root / 'upstream/src')
 
 out = root / 'dist/i18n-audit.txt'
 out.parent.mkdir(parents=True, exist_ok=True)
@@ -86,7 +114,12 @@ with out.open('w', encoding='utf-8') as fp:
     fp.write(f'Missing msgids: {len(missing)}\n\n')
     for item in missing:
         fp.write(item.replace('\n', '\\n') + '\n')
+    fp.write(f'\nHardcoded visible English candidates: {len(hardcoded)}\n')
+    for filename, line, kind, value in hardcoded:
+        fp.write(f'{filename}:{line} [{kind}] {value.replace(chr(10), "\\n")}\n')
 
 print(out.read_text(encoding='utf-8'))
 if '--strict' in sys.argv and missing:
-    raise SystemExit(f'{len(missing)} untranslated msgids remain')
+    raise SystemExit(f'{len(missing)} untranslated POT msgids remain')
+if '--strict-ui' in sys.argv and hardcoded:
+    raise SystemExit(f'{len(hardcoded)} hardcoded visible English strings remain')
