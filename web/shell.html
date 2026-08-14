@@ -7,8 +7,8 @@
   <title>Project: Starfighter</title>
   <script src="/sdk.js"></script>
   <style>
-    html,body{margin:0;width:100%;height:100%;background:#000;overflow:hidden}
-    body{display:flex;align-items:center;justify-content:center;font-family:Arial,Helvetica,sans-serif}
+    html,body{margin:0;width:100%;height:100%;background:#000;overflow:hidden;overscroll-behavior:none}
+    body{display:flex;align-items:center;justify-content:center;font-family:Arial,Helvetica,sans-serif;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
     #canvas{
       width:min(100vw,133.333333vh);
       height:min(100vh,75vw);
@@ -18,6 +18,10 @@
       outline:none;
       display:block;
       image-rendering:auto;
+      touch-action:none;
+      user-select:none;
+      -webkit-user-select:none;
+      -webkit-touch-callout:none;
     }
     #loading{position:fixed;inset:0;display:flex;flex-direction:column;gap:18px;align-items:center;justify-content:center;color:#fff;background:#000;z-index:10;text-align:center;padding:24px;box-sizing:border-box}
     #loading-title{font-size:18px;font-weight:600}
@@ -35,6 +39,10 @@
   <script>
     const canvas=document.getElementById('canvas');
     const loading=document.getElementById('loading');
+
+    document.addEventListener('contextmenu',function(event){
+      if(event.target===canvas||canvas.contains(event.target))event.preventDefault();
+    });
 
     const starfighterControlKeys=new Set([
       'ArrowUp','ArrowDown','ArrowLeft','ArrowRight',
@@ -56,6 +64,15 @@
         globalThis.starfighterPlatformPaused=!!paused;
       }
     }
+
+    document.addEventListener('visibilitychange',function(){
+      setStarfighterPlatformPaused(document.hidden);
+    });
+    window.addEventListener('blur',function(){setStarfighterPlatformPaused(true);});
+    window.addEventListener('focus',function(){
+      if(!document.hidden)setStarfighterPlatformPaused(false);
+    });
+    window.addEventListener('pagehide',function(){setStarfighterPlatformPaused(true);});
 
     globalThis.starfighterSessionStartedAt=Date.now();
     globalThis.starfighterLastInterstitialAt=0;
