@@ -1,0 +1,85 @@
+from pathlib import Path
+
+path = Path('upstream/src/player.c')
+source = path.read_text()
+
+map_marker = '''static enum keys mapkey(int code) {
+\tswitch (code) {
+'''
+map_replacement = '''static enum keys mapkey(int code) {
+#ifdef __EMSCRIPTEN__
+\t/* Browser-friendly controls: WASD movement, Space/LMB primary fire,
+\t * Ctrl/RMB secondary fire, E/Shift weapon switch. Arrow keys and the
+\t * original alternatives remain available below as fallbacks. */
+\tswitch (code)
+\t{
+\t\tcase SDLK_w:
+\t\t\treturn KEY_UP;
+\t\tcase SDLK_s:
+\t\t\treturn KEY_DOWN;
+\t\tcase SDLK_a:
+\t\t\treturn KEY_LEFT;
+\t\tcase SDLK_d:
+\t\t\treturn KEY_RIGHT;
+\t\tcase SDLK_SPACE:
+\t\tcase SDLK_j:
+\t\t\treturn KEY_FIRE;
+\t\tcase SDLK_LCTRL:
+\t\tcase SDLK_RCTRL:
+\t\tcase SDLK_k:
+\t\t\treturn KEY_ALTFIRE;
+\t\tcase SDLK_e:
+\t\t\treturn KEY_SWITCH;
+\t\tdefault:
+\t\t\tbreak;
+\t}
+#endif
+\tswitch (code) {
+'''
+if map_replacement not in source:
+    if map_marker not in source:
+        raise SystemExit('mapkey marker not found')
+    source = source.replace(map_marker, map_replacement, 1)
+
+mouse_down_old = '''\t\t\tcase SDL_MOUSEBUTTONDOWN:
+\t\t\t\tif (engine.gameSection == SECTION_INTERMISSION)
+\t\t\t\t{
+\t\t\t\t\tif (engine.event.button.button == SDL_BUTTON_LEFT)
+\t\t\t\t\t\tengine.keyState[KEY_FIRE] = 1;
+\t\t\t\t\tif (engine.event.button.button == SDL_BUTTON_RIGHT)
+\t\t\t\t\t\tengine.keyState[KEY_ALTFIRE] = 1;
+\t\t\t\t}
+\t\t\t\tbreak;
+'''
+mouse_down_new = '''\t\t\tcase SDL_MOUSEBUTTONDOWN:
+\t\t\t\tif ((engine.gameSection == SECTION_INTERMISSION)
+\t\t\t\t\t\t|| (engine.gameSection == SECTION_GAME))
+\t\t\t\t{
+\t\t\t\t\tif (engine.event.button.button == SDL_BUTTON_LEFT)
+\t\t\t\t\t\tengine.keyState[KEY_FIRE] = 1;
+\t\t\t\t\tif (engine.event.button.button == SDL_BUTTON_RIGHT)
+\t\t\t\t\t\tengine.keyState[KEY_ALTFIRE] = 1;
+\t\t\t\t\tif (engine.event.button.button == SDL_BUTTON_MIDDLE)
+\t\t\t\t\t\tengine.keyState[KEY_SWITCH] = 1;
+\t\t\t\t}
+\t\t\t\tbreak;
+
+\t\t\tcase SDL_MOUSEBUTTONUP:
+\t\t\t\tif ((engine.gameSection == SECTION_INTERMISSION)
+\t\t\t\t\t\t|| (engine.gameSection == SECTION_GAME))
+\t\t\t\t{
+\t\t\t\t\tif (engine.event.button.button == SDL_BUTTON_LEFT)
+\t\t\t\t\t\tengine.keyState[KEY_FIRE] = 0;
+\t\t\t\t\tif (engine.event.button.button == SDL_BUTTON_RIGHT)
+\t\t\t\t\t\tengine.keyState[KEY_ALTFIRE] = 0;
+\t\t\t\t\tif (engine.event.button.button == SDL_BUTTON_MIDDLE)
+\t\t\t\t\t\tengine.keyState[KEY_SWITCH] = 0;
+\t\t\t\t}
+\t\t\t\tbreak;
+'''
+if mouse_down_new not in source:
+    if mouse_down_old not in source:
+        raise SystemExit('mouse button marker not found')
+    source = source.replace(mouse_down_old, mouse_down_new, 1)
+
+path.write_text(source)
