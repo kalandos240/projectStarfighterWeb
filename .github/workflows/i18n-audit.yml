@@ -30,9 +30,10 @@ jobs:
         run: |
           mkdir -p dist
           cp scripts/audit_i18n.py.txt /tmp/audit_i18n.py
-          python3 /tmp/audit_i18n.py
+          python3 /tmp/audit_i18n.py --strict
 
       - name: Upload localization report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: starfighter-i18n-audit
