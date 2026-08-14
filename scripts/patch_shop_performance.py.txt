@@ -1,0 +1,14 @@
+from pathlib import Path
+
+path = Path('upstream/src/shop.c')
+text = path.read_text(encoding='utf-8')
+
+old = '''void shop_show()\n{\n\tint icons = SHOP_MAX;\n\tint sell_x = SHOP_X + SHOP_WIDTH - gfx_sprites[SP_SELL]->w - 2;\n\tint sell_y = SHOP_Y + 183;\n\tint buy_x = sell_x - gfx_sprites[SP_BUY]->w - 5;\n\tint buy_y = SHOP_Y + 183;\n\n\tdrawShop();\n\n'''
+new = '''void shop_show()\n{\n\tint icons = SHOP_MAX;\n\tint sell_x = SHOP_X + SHOP_WIDTH - gfx_sprites[SP_SELL]->w - 2;\n\tint sell_y = SHOP_Y + 183;\n\tint buy_x = sell_x - gfx_sprites[SP_BUY]->w - 5;\n\tint buy_y = SHOP_Y + 183;\n\n\t/* drawShop() is intentionally NOT called every frame here.\n\t * The shop surfaces are already built by shop_init(), and all state\n\t * changes below call drawShop() explicitly. Rebuilding every frame is\n\t * especially expensive in the browser because Unicode text rendering\n\t * crosses the JS/WASM boundary and allocates temporary RGBA surfaces. */\n\n'''
+
+if new not in text:
+    if old not in text:
+        raise SystemExit('shop_show() per-frame drawShop marker not found')
+    text = text.replace(old, new, 1)
+
+path.write_text(text, encoding='utf-8')
