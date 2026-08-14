@@ -1,0 +1,90 @@
+from pathlib import Path
+import ast
+import re
+import sys
+
+
+def parse_po_msgids(text):
+    msgids = []
+    lines = text.splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        if line.startswith('msgid '):
+            parts = []
+            raw = line[len('msgid '):].strip()
+            try:
+                parts.append(ast.literal_eval(raw))
+            except Exception:
+                parts.append('')
+            i += 1
+            while i < len(lines) and lines[i].startswith('"'):
+                try:
+                    parts.append(ast.literal_eval(lines[i]))
+                except Exception:
+                    pass
+                i += 1
+            value = ''.join(parts)
+            if value:
+                msgids.append(value)
+            continue
+        i += 1
+    return msgids
+
+
+def parse_translation_keys(text):
+    keys = set()
+    # Translation entries are intentionally kept one entry per line.
+    pattern = re.compile(r'^\s*\{\s*("(?:\\.|[^"\\])*")\s*,\s*("(?:\\.|[^"\\])*")\s*\},?\s*$', re.M)
+    for match in pattern.finditer(text):
+        try:
+            source = ast.literal_eval(match.group(1))
+            translated = ast.literal_eval(match.group(2))
+        except Exception:
+            continue
+        if source and translated:
+            keys.add(source)
+    return keys
+
+
+root = Path('.')
+pot = root / 'upstream/locale/pr-starfighter.pot'
+if not pot.exists():
+    raise SystemExit('upstream POT not found')
+
+msgids = set(parse_po_msgids(pot.read_text(encoding='utf-8')))
+translated = set()
+for path in [root / 'web/web_i18n.c.txt', *sorted((root / 'web').glob('i18n-*.inc'))]:
+    if path.exists():
+        translated |= parse_translation_keys(path.read_text(encoding='utf-8'))
+
+# These are handled in the dedicated plural bridge rather than the simple table.
+plural_bridge = (root / 'web/web_ngettext.c.txt').read_text(encoding='utf-8') if (root / 'web/web_ngettext.c.txt').exists() else ''
+plural_keys = {
+    'Got $%d',
+    'Got %d rocket',
+    'Got %d plasma cell',
+    'Collect $%d more...\n$%d more to collect...\nJust $%d more needed...\nCollect just $%d more...',
+    'Collect %d more cargo pod...\n%d more cargo pod to collect...\n%d more cargo pod needed...\nCollect just %d more cargo pod...\nOnly %d cargo pod left to collect...',
+    'Collect %d more piece of ore...\n%d more piece of ore to collect...\n%d more piece of ore needed...\nCollect just %d more piece...',
+    'Destroy %d more target...\n%d more target to destroy...\n%d target remains...\nDestroy just %d more...\nOnly %d target left...\nDestroy %d last target...',
+}
+if plural_bridge:
+    translated |= {key for key in plural_keys if key.split('\n', 1)[0].split('%d', 1)[0].strip() in plural_bridge or key in plural_bridge}
+
+# Font path is an implementation hook, not visible UI text in the web build.
+ignored = {'data/TakaoPGothic.ttf'}
+missing = sorted(msgids - translated - ignored)
+
+out = root / 'dist/i18n-audit.txt'
+out.parent.mkdir(parents=True, exist_ok=True)
+with out.open('w', encoding='utf-8') as fp:
+    fp.write(f'POT msgids: {len(msgids)}\n')
+    fp.write(f'Covered msgids: {len(msgids - set(missing) - ignored)}\n')
+    fp.write(f'Missing msgids: {len(missing)}\n\n')
+    for item in missing:
+        fp.write(item.replace('\n', '\\n') + '\n')
+
+print(out.read_text(encoding='utf-8'))
+if '--strict' in sys.argv and missing:
+    raise SystemExit(f'{len(missing)} untranslated msgids remain')
