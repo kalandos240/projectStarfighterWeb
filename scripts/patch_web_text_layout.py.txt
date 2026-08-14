@@ -1,0 +1,56 @@
+from pathlib import Path
+
+path = Path('upstream/src/gfx.c')
+source = path.read_text()
+
+# Use one consistent, readable browser font for measuring and rendering.
+source = source.replace("ctx.font = 'bold 13px sans-serif';", "ctx.font = '700 14px Arial, Helvetica, sans-serif';")
+source = source.replace("draw.font = 'bold 13px sans-serif';", "draw.font = '700 14px Arial, Helvetica, sans-serif';")
+
+# Keep a small right margin inside message boxes instead of rendering into borders.
+old_width = '    int maxWidth = wrap ? MAX(1, dest->w - real_x) : 0;\n'
+new_width = '    int maxWidth = wrap ? MAX(1, dest->w - real_x - 8) : 0;\n'
+if new_width not in source:
+    if old_width not in source:
+        raise SystemExit('web text max-width marker not found')
+    source = source.replace(old_width, new_width, 1)
+
+# Canvas fillText(maxWidth) scales glyphs horizontally. We already wrap ourselves,
+# so the maxWidth argument must not be supplied or long Russian strings get squeezed.
+old_draw = "        draw.fillText(lines[i], 1, 1 + i * lineHeight, Math.max(1, width - 1));\n"
+new_draw = "        draw.fillText(lines[i], 1, 1 + i * lineHeight);\n"
+if new_draw not in source:
+    if old_draw not in source:
+        raise SystemExit('web fillText marker not found')
+    source = source.replace(old_draw, new_draw, 1)
+
+# Match the slightly larger browser font without changing the game's 20px menu rhythm.
+source = source.replace('    const lineHeight = 16;\n', '    const lineHeight = 17;\n', 1)
+
+# In NOFONT web builds the original fallback uses strlen(), which counts UTF-8 bytes.
+# Cyrillic text therefore gets a surface roughly twice as wide as it should be and
+# centered UI elements drift. Measure the actual rendered width in the browser instead.
+old_surface = '''#else
+\tw = strlen(inString) * (PIXFONT_W + 1) + 1;
+\tth = PIXFONT_H;
+\th = MAX(PIXFONT_LINE_HEIGHT, PIXFONT_H + 2);
+#endif
+'''
+new_surface = '''#else
+#ifdef __EMSCRIPTEN__
+\tw = gfx_unicodeWidth(inString) + 4;
+\tth = 17;
+\th = 19;
+#else
+\tw = strlen(inString) * (PIXFONT_W + 1) + 1;
+\tth = PIXFONT_H;
+\th = MAX(PIXFONT_LINE_HEIGHT, PIXFONT_H + 2);
+#endif
+#endif
+'''
+if new_surface not in source:
+    if old_surface not in source:
+        raise SystemExit('text surface sizing marker not found')
+    source = source.replace(old_surface, new_surface, 1)
+
+path.write_text(source)
