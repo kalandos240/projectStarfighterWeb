@@ -1,0 +1,58 @@
+name: Sync upstream license files
+
+on:
+  push:
+    paths:
+      - '.github/workflows/sync-license-files.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read pinned upstream revision
+        id: upstream
+        shell: bash
+        run: |
+          set -euo pipefail
+          UPSTREAM_REPO="$(sed -n '1p' UPSTREAM_COMMIT | tr -d '\r')"
+          UPSTREAM_SHA="$(sed -n '2p' UPSTREAM_COMMIT | tr -d '\r')"
+          test -n "$UPSTREAM_REPO"
+          test -n "$UPSTREAM_SHA"
+          echo "repo=$UPSTREAM_REPO" >> "$GITHUB_OUTPUT"
+          echo "sha=$UPSTREAM_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Copy authoritative legal files from upstream
+        shell: bash
+        env:
+          UPSTREAM_REPO: ${{ steps.upstream.outputs.repo }}
+          UPSTREAM_SHA: ${{ steps.upstream.outputs.sha }}
+        run: |
+          set -euo pipefail
+          BASE="https://raw.githubusercontent.com/${UPSTREAM_REPO}/${UPSTREAM_SHA}"
+          curl --fail --location --silent --show-error "$BASE/COPYING" -o LICENSE
+          curl --fail --location --silent --show-error "$BASE/LICENSES" -o LICENSES
+          curl --fail --location --silent --show-error "$BASE/data/ipa_font_license.txt" -o IPA_FONT_LICENSE.txt
+          curl --fail --location --silent --show-error "$BASE/data/credits.txt" -o CREDITS.txt
+
+      - name: Commit synchronized legal files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add LICENSE LICENSES IPA_FONT_LICENSE.txt CREDITS.txt
+          if git diff --cached --quiet; then
+            echo "Legal files are already synchronized."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Sync upstream license and attribution files"
+          git push
