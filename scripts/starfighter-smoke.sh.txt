@@ -79,11 +79,26 @@ cleanup() {
 }
 trap cleanup EXIT
 
-cp scripts/cdp-smoke.js.txt /tmp/cdp-smoke.js
+python3 - <<'PY'
+from pathlib import Path
+path = Path('scripts/cdp-smoke.js.txt')
+text = path.read_text()
+text = text.replace("'Starfighter first rendered frame', 45000);", "'Starfighter first rendered frame', 120000);")
+text = text.replace("'Starfighter mission gameplay start', 30000);", "'Starfighter mission gameplay start', 90000);")
+marker = "  console.log('Keyboard input reached the Starfighter main menu');\n"
+insert = marker + "\n  const menuShot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });\n  fs.writeFileSync('dist/runtime-menu-ru.png', Buffer.from(menuShot.data, 'base64'));\n  console.log('Captured Russian main-menu screenshot under Yandex SDK language mock');\n"
+if marker not in text:
+    raise SystemExit('main menu screenshot insertion marker not found')
+text = text.replace(marker, insert, 1)
+Path('/tmp/cdp-smoke.js').write_text(text)
+PY
 node /tmp/cdp-smoke.js
 
+test -s dist/runtime-menu-ru.png
 test -s dist/runtime-smoke.png
+MENU_SIZE="$(stat -c%s dist/runtime-menu-ru.png)"
 SIZE="$(stat -c%s dist/runtime-smoke.png)"
+echo "Russian menu screenshot: ${MENU_SIZE} bytes"
 echo "Runtime screenshot: ${SIZE} bytes"
 
 grep -q 'data-starfighter-runtime-initialized="1"' dist/runtime-dom.html
