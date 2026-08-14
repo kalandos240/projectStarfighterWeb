@@ -44,20 +44,20 @@ EM_JS(uintptr_t, gfx_webRenderText, (const char *text, int maxWidth, int red, in
     ctx.textBaseline = 'top';
 
     const lines = [];
-    const paragraphs = String(value || '').split('\n');
+    const paragraphs = String(value || String()).split('\n');
     for (const paragraph of paragraphs) {
         if (maxWidth <= 0) {
             lines.push(paragraph);
             continue;
         }
 
-        const words = paragraph.trim().split(/\s+/).filter(Boolean);
+        const words = paragraph.trim().split(' ').filter(Boolean);
         if (words.length === 0) {
-            lines.push('');
+            lines.push(String());
             continue;
         }
 
-        let line = '';
+        let line = String();
         for (const word of words) {
             const candidate = line ? line + ' ' + word : word;
             if (line && ctx.measureText(candidate).width > maxWidth) {
@@ -70,7 +70,7 @@ EM_JS(uintptr_t, gfx_webRenderText, (const char *text, int maxWidth, int red, in
         lines.push(line);
     }
 
-    if (lines.length === 0) lines.push('');
+    if (lines.length === 0) lines.push(String());
 
     let width = 1;
     for (const line of lines) {
