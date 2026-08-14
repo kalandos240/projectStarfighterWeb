@@ -27,6 +27,7 @@ mkdir -p "$OUT" "$ASSETS/data" "$ASSETS/gfx" "$ASSETS/sound" "$ASSETS/music"
 cd "$PORT_ROOT"
 python3 scripts/patch_hardcoded_ui.py.txt
 python3 scripts/audit_i18n.py.txt --strict --strict-ui
+python3 scripts/audit_yandex.py.txt
 python3 scripts/patch_web_release.py.txt
 python3 scripts/patch_menu_marker.py.txt
 
@@ -76,7 +77,8 @@ test -s "$OUT/index.html"
 python3 - <<'PY'
 from pathlib import Path
 root = Path('dist')
-release = [p for p in root.rglob('*') if p.is_file() and not p.name.startswith('runtime-') and p.name != 'i18n-audit.txt']
+diagnostics = {'i18n-audit.txt', 'yandex-moderation-audit.txt'}
+release = [p for p in root.rglob('*') if p.is_file() and not p.name.startswith('runtime-') and p.name not in diagnostics]
 assert root / 'index.html' in release
 bad = [p.relative_to(root).as_posix() for p in release if ' ' in p.relative_to(root).as_posix() or any(ord(c) > 127 for c in p.relative_to(root).as_posix())]
 total = sum(p.stat().st_size for p in release)
@@ -88,7 +90,7 @@ PY
 rm -f "$PORT_ROOT/starfighter-yandexgames.zip"
 (
   cd "$OUT"
-  zip -9 -r "$PORT_ROOT/starfighter-yandexgames.zip" . -x 'runtime-*' -x 'i18n-audit.txt'
+  zip -9 -r "$PORT_ROOT/starfighter-yandexgames.zip" . -x 'runtime-*' -x 'i18n-audit.txt' -x 'yandex-moderation-audit.txt'
 )
 
 echo "Web build created in $OUT"
