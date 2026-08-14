@@ -62,6 +62,15 @@ async function main() {
 
   await send('Runtime.enable');
   await send('Page.enable');
+  await send('Emulation.setDeviceMetricsOverride', {
+    width: 1280,
+    height: 720,
+    deviceScaleFactor: 1,
+    mobile: false,
+    screenWidth: 1280,
+    screenHeight: 720
+  });
+  await wait(`window.innerWidth===1280 && window.innerHeight===720`);
   await wait(`document.documentElement?.getAttribute('data-starfighter-runtime-initialized')==='1'`);
   await wait(`globalThis.starfighterGameplayDesired===true`);
   await sleep(700);
