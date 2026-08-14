@@ -30,7 +30,7 @@ jobs:
         run: |
           mkdir -p dist
           cp scripts/audit_i18n.py.txt /tmp/audit_i18n.py
-          python3 /tmp/audit_i18n.py
+          python3 /tmp/audit_i18n.py --strict
 
       - name: Checkout Emscripten SDK
         uses: actions/checkout@v6
@@ -90,6 +90,30 @@ jobs:
         run: |
           cp scripts/starfighter-smoke.sh.txt /tmp/starfighter-smoke.sh
           bash /tmp/starfighter-smoke.sh
+
+      - name: Validate Yandex release payload
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import unicodedata
+
+          root = Path('dist')
+          release = [p for p in root.rglob('*') if p.is_file() and not p.name.startswith('runtime-') and p.name != 'i18n-audit.txt']
+          assert (root / 'index.html') in release, 'index.html must be in archive root'
+
+          bad = []
+          total = 0
+          for path in release:
+              rel = path.relative_to(root).as_posix()
+              total += path.stat().st_size
+              if ' ' in rel or any(ord(ch) > 127 for ch in rel):
+                  bad.append(rel)
+
+          print('Release files:', len(release))
+          print('Uncompressed release bytes:', total)
+          assert not bad, f'Invalid archive paths: {bad}'
+          assert total < 100_000_000, f'Uncompressed payload is too large: {total} bytes'
+          PY
 
       - name: Package Yandex Games archive
         run: |
