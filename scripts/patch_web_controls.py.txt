@@ -30,6 +30,10 @@ map_replacement = '''static enum keys mapkey(int code) {
 \t\t\treturn KEY_ALTFIRE;
 \t\tcase SDLK_e:
 \t\t\treturn KEY_SWITCH;
+\t\tcase SDLK_ESCAPE:
+\t\t\tif (engine.gameSection == SECTION_GAME)
+\t\t\t\treturn KEY_PAUSE;
+\t\t\tbreak;
 \t\tdefault:
 \t\t\tbreak;
 \t}
