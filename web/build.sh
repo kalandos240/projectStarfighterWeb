@@ -58,27 +58,40 @@ emcc "${SOURCES[@]}" \
   -sALLOW_MEMORY_GROWTH=1 \
   -sFORCE_FILESYSTEM=1 \
   -sEXIT_RUNTIME=0 \
-  -sSINGLE_FILE=1 \
-  -sSINGLE_FILE_BINARY_ENCODE=0 \
   -sEXPORTED_FUNCTIONS='["_main","_save"]' \
   -lidbfs.js \
   --pre-js "$PORT_ROOT/web/platform-pre-release.txt" \
   --pre-js "$PORT_ROOT/web/yandex-language-gate.txt" \
-  --embed-file "$ASSETS/data@/data" \
-  --embed-file "$ASSETS/gfx@/gfx" \
-  --embed-file "$ASSETS/sound@/sound" \
-  --embed-file "$ASSETS/music@/music" \
+  --preload-file "$ASSETS/data@/data" \
+  --preload-file "$ASSETS/gfx@/gfx" \
+  --preload-file "$ASSETS/sound@/sound" \
+  --preload-file "$ASSETS/music@/music" \
   --shell-file "$PORT_ROOT/web/shell.html" \
   -o "$OUT/index.html"
 
+cp "$PORT_ROOT/web/bootstrap.js" "$OUT/bootstrap.js"
 cp "$SOURCE_ROOT/COPYING" "$SOURCE_ROOT/LICENSES" "$OUT/"
 
 test -s "$OUT/index.html"
+test -s "$OUT/index.js"
+test -s "$OUT/index.wasm"
+test -s "$OUT/index.data"
+test -s "$OUT/bootstrap.js"
+
 python3 - <<'PY'
 from pathlib import Path
+import re
+
 root = Path('dist')
+html = (root / 'index.html').read_text(encoding='utf-8', errors='replace')
+scripts = re.findall(r'<script\b([^>]*)>(.*?)</script>', html, flags=re.I | re.S)
+inline = [(attrs, body[:80]) for attrs, body in scripts if not re.search(r'\bsrc\s*=\s*["\'][^"\']+["\']', attrs, flags=re.I) or body.strip()]
+handlers = re.findall(r'\son[a-z]+\s*=\s*["\']', html, flags=re.I)
+assert not inline, f'Inline scripts are forbidden by Yandex nonce CSP: {inline}'
+assert not handlers, 'Inline event handlers are forbidden by Yandex nonce CSP'
+
 diagnostics = {'i18n-audit.txt', 'yandex-moderation-audit.txt'}
-release = [p for p in root.rglob('*') if p.is_file() and not p.name.startswith('runtime-') and p.name not in diagnostics]
+release = [p for p in root.rglob('*') if p.is_file() and not p.name.startswith('runtime-') and p.name not in diagnostics and p.name != 'sdk.js']
 assert root / 'index.html' in release
 bad = [p.relative_to(root).as_posix() for p in release if ' ' in p.relative_to(root).as_posix() or any(ord(c) > 127 for c in p.relative_to(root).as_posix())]
 total = sum(p.stat().st_size for p in release)
@@ -87,11 +100,11 @@ assert not bad, bad
 assert total < 100_000_000, total
 PY
 
-rm -f "$PORT_ROOT/starfighter-yandexgames.zip"
+rm -f "$PORT_ROOT/starfighter-yandexgames.zip" "$OUT/sdk.js"
 (
   cd "$OUT"
   zip -9 -r "$PORT_ROOT/starfighter-yandexgames.zip" . -x 'runtime-*' -x 'i18n-audit.txt' -x 'yandex-moderation-audit.txt'
 )
 
-echo "Web build created in $OUT"
+echo "CSP-safe web build created in $OUT"
 echo "Yandex archive created at $PORT_ROOT/starfighter-yandexgames.zip"
