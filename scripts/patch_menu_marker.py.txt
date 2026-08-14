@@ -85,6 +85,7 @@ defs_path.write_text(defs_source)
 
 exec(Path('scripts/patch_ads.py.txt').read_text(), {})
 exec(Path('scripts/patch_browser_text.py.txt').read_text(), {})
+exec(Path('scripts/patch_web_text_layout.py.txt').read_text(), {})
 exec(Path('scripts/patch_unicode_probe.py.txt').read_text(), {})
 exec(Path('scripts/patch_ngettext.py.txt').read_text(), {})
 exec(Path('scripts/patch_cloud_timestamp.py.txt').read_text(), {})
