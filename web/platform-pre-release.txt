@@ -90,11 +90,13 @@ function starfighterApplyGameplayState() {
   const sdk = globalThis.starfighterYsdk;
   const gameplay = sdk && sdk.features && sdk.features.GameplayAPI;
   if (!gameplay) return;
-  if (globalThis.starfighterGameplayDesired === globalThis.starfighterGameplayReported) return;
 
-  if (globalThis.starfighterGameplayDesired) gameplay.start();
+  const shouldReportGameplay = globalThis.starfighterGameplayDesired && !globalThis.starfighterPlatformPaused;
+  if (shouldReportGameplay === globalThis.starfighterGameplayReported) return;
+
+  if (shouldReportGameplay) gameplay.start();
   else gameplay.stop();
-  globalThis.starfighterGameplayReported = globalThis.starfighterGameplayDesired;
+  globalThis.starfighterGameplayReported = shouldReportGameplay;
 }
 
 globalThis.starfighterGameplayStart = function () {
@@ -104,6 +106,11 @@ globalThis.starfighterGameplayStart = function () {
 
 globalThis.starfighterGameplayStop = function () {
   globalThis.starfighterGameplayDesired = false;
+  starfighterApplyGameplayState();
+};
+
+globalThis.starfighterSetPlatformPaused = function (paused) {
+  globalThis.starfighterPlatformPaused = !!paused;
   starfighterApplyGameplayState();
 };
 
@@ -123,10 +130,10 @@ globalThis.starfighterSdkPromise = (typeof YaGames !== 'undefined')
       globalThis.starfighterYsdk = sdk;
 
       sdk.on('game_api_pause', function () {
-        globalThis.starfighterPlatformPaused = true;
+        globalThis.starfighterSetPlatformPaused(true);
       });
       sdk.on('game_api_resume', function () {
-        globalThis.starfighterPlatformPaused = false;
+        globalThis.starfighterSetPlatformPaused(false);
       });
 
       if (globalThis.starfighterLoadingReadySent && sdk.features && sdk.features.LoadingAPI) {
