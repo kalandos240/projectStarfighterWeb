@@ -85,7 +85,8 @@ import re
 root = Path('dist')
 html = (root / 'index.html').read_text(encoding='utf-8', errors='replace')
 scripts = re.findall(r'<script\b([^>]*)>(.*?)</script>', html, flags=re.I | re.S)
-inline = [(attrs, body[:80]) for attrs, body in scripts if not re.search(r'\bsrc\s*=\s*["\'][^"\']+["\']', attrs, flags=re.I) or body.strip()]
+src_pattern = r'\bsrc\s*=\s*(?:"[^"]+"|\'[^\']+\'|[^\s>]+)'
+inline = [(attrs, body[:80]) for attrs, body in scripts if not re.search(src_pattern, attrs, flags=re.I) or body.strip()]
 handlers = re.findall(r'\son[a-z]+\s*=\s*["\']', html, flags=re.I)
 assert not inline, f'Inline scripts are forbidden by Yandex nonce CSP: {inline}'
 assert not handlers, 'Inline event handlers are forbidden by Yandex nonce CSP'
