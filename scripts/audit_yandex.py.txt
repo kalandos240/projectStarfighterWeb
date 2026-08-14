@@ -1,5 +1,4 @@
 from pathlib import Path
-import sys
 
 root = Path('.')
 
@@ -30,20 +29,23 @@ patch_release = text('scripts/patch_web_release.py.txt')
 patch_ads = text('scripts/patch_ads.py.txt')
 patch_ready = text('scripts/patch_loading_ready.py.txt')
 menu_patch = text('scripts/patch_menu_marker.py.txt')
+smoke = text('scripts/starfighter-smoke.sh.txt')
+repo_runtime_code = '\n'.join([shell, platform, gate, patch_release, patch_ads])
 
 require('1.19.1 SDK loader path', '<script src="/sdk.js"></script>' in shell, 'Yandex-hosted archive uses /sdk.js')
 require('1.19.1 YaGames.init', 'YaGames.init()' in platform, 'SDK initializes through YaGames.init()')
 require('2.14 Yandex language source', 'environment.i18n.lang' in gate and 'ysdk.environment.i18n.lang' in gate, 'native UI is gated on Yandex SDK language')
 require('2.14 language gate is compiled', '--pre-js web/yandex-language-gate.txt' in workflow and 'yandex-language-gate.txt' in build, 'release build includes language startup gate')
+require('2.14 SDK-language runtime QA', "lang: 'ru'" in smoke and '--lang=en-US' in smoke and 'data-starfighter-language-source' in smoke, 'CI proves Yandex ru overrides an English browser locale')
 require('1.19.2 Game Ready API', 'LoadingAPI.ready()' in platform, 'LoadingAPI.ready() is integrated')
-require('1.19.2 Game Ready after first frame', 'data-starfighter-first-frame' in patch_ready and 'starfighterPlatformReady' in patch_ready and "patch_loading_ready.py.txt" in menu_patch, 'ready() hook is moved to first rendered interactive title frame')
+require('1.19.2 Game Ready after first frame', 'data-starfighter-first-frame' in patch_ready and 'starfighterPlatformReady' in patch_ready and 'patch_loading_ready.py.txt' in menu_patch, 'ready() hook is moved to first rendered interactive title frame')
 require('1.19.3 GameplayAPI start', 'GameplayAPI.start()' in platform and 'starfighterGameplayStart' in patch_release, 'gameplay start is marked at actual mission gameplay')
 require('1.19.3 GameplayAPI stop', 'GameplayAPI.stop()' in platform and 'starfighterGameplayStop' in patch_release, 'menus/pause/end stop gameplay marking')
-require('1.3 platform pause events', "game_api_pause" in platform and "game_api_resume" in platform, 'Yandex pause/resume events are handled')
+require('1.3 platform pause events', 'game_api_pause' in platform and 'game_api_resume' in platform, 'Yandex pause/resume events are handled')
 require('1.3 browser focus pause fallback', 'visibilitychange' in shell and "window.addEventListener('blur'" in shell, 'tab hide/blur pauses the platform state')
 require('4.7 ad pauses game', 'setStarfighterPlatformPaused(true)' in shell and 'onOpen' in shell and 'onClose' in shell, 'fullscreen-ad lifecycle pauses then resumes game/audio')
-require('4.4 ad only on mission end', 'starfighterMissionEnded' in patch_ads and 'case 2:' in patch_ads, 'interstitial request is hooked after mission gameplay returns')
-require('4.5 no rewarded ads', 'showRewardedVideo' not in ''.join(p.read_text(encoding='utf-8', errors='ignore') for p in root.rglob('*') if p.is_file() and p.stat().st_size < 2_000_000), 'rewarded-ad consent requirement is not applicable because rewarded ads are absent')
+require('4.4 ad only on mission boundary', 'starfighterGameplayStop' in patch_ads and 'starfighterMissionEnded' in patch_ads and 'mission end marker' in patch_ads, 'interstitial request is attached after actual mission gameplay returns')
+require('4.5 no rewarded ads', 'showRewardedVideo' not in repo_runtime_code, 'rewarded-ad consent requirement is N/A because rewarded ads are absent')
 require('1.9 Player object', 'getPlayer()' in platform, 'cloud bridge obtains the Yandex Player object')
 require('1.9 cloud read', '.getData(' in platform, 'saved native slots are restored from Yandex Player Data')
 require('1.9 cloud write', '.setData(' in platform, 'native save completion is mirrored to Yandex Player Data')
@@ -53,9 +55,10 @@ require('1.10 responsive 4:3 canvas', 'aspect-ratio:4/3' in shell and 'max-width
 require('1.21 archive size check', '100_000_000' in workflow and '100_000_000' in build, 'release build fails above 100 MB uncompressed')
 require('1.22 index at archive root', '-o dist/index.html' in workflow and 'index.html must be in archive root' in workflow, 'index.html is emitted to archive root and validated')
 require('1.22 safe archive paths', 'Invalid archive paths' in workflow, 'spaces and non-ASCII archive paths are rejected')
-require('3.5 legal notices packaged', 'upstream/COPYING upstream/LICENSES dist/' in workflow and 'copy_legal_notices.py.txt' in menu_patch, 'GPL/license/credits notices are included')
-require('2.10 strict Russian gettext audit', '--strict --strict-ui' in workflow, 'release build requires zero untranslated catalog and hardcoded UI strings')
-require('1.14 runtime smoke test', 'starfighter-smoke.sh.txt' in workflow, 'release build launches the game in Chromium and enters gameplay')
+require('3.5 legal notices packaged', 'cp upstream/COPYING upstream/LICENSES dist/' in workflow and 'copy_legal_notices.py.txt' in menu_patch, 'GPL/license/credits notices are included')
+require('2.10 strict Russian localization audit', '--strict --strict-ui' in workflow, 'release build requires zero untranslated POT and hardcoded visible UI strings')
+require('1.14 runtime smoke test', 'starfighter-smoke.sh.txt' in workflow and 'Starfighter mission gameplay start' in text('scripts/cdp-smoke.js.txt'), 'release build launches the game and requires actual mission gameplay')
+require('1.14 Russian menu screenshot QA', 'runtime-menu-ru.png' in smoke, 'CI captures a menu screenshot with browser=en and Yandex SDK language=ru')
 
 # The game has no embedded video UI, so the system-video-player checklist item is N/A.
 video_markup = any(token in shell.lower() for token in ('<video', '<iframe'))
