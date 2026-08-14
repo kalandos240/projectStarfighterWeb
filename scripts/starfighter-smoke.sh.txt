@@ -11,49 +11,75 @@ if [ -z "$BROWSER" ]; then
   exit 1
 fi
 
-FILE_URL="$(python3 -c "from pathlib import Path; print(Path('dist/index.html').resolve().as_uri())")"
-echo "Testing direct launch: $FILE_URL"
+cat > dist/sdk.js <<'JS'
+globalThis.__qaSdkCalls = [];
+globalThis.YaGames = {
+  init: async function () {
+    globalThis.__qaSdkCalls.push('init');
+    return {
+      environment: { i18n: { lang: 'ru' } },
+      features: {
+        LoadingAPI: {
+          ready() {
+            globalThis.__qaSdkCalls.push('loading-ready');
+            document.documentElement.setAttribute('data-qa-loading-ready', '1');
+          }
+        },
+        GameplayAPI: {
+          start() { globalThis.__qaSdkCalls.push('gameplay-start'); },
+          stop() { globalThis.__qaSdkCalls.push('gameplay-stop'); }
+        }
+      },
+      on() {},
+      getPlayer: async function () {
+        return {
+          getData: async function () { return {}; },
+          setData: async function () {}
+        };
+      },
+      adv: { showFullscreenAdv() {} }
+    };
+  }
+};
+JS
+
+python3 -m http.server 8765 --directory dist >dist/runtime-server.log 2>&1 &
+SERVER_PID=$!
+TARGET_URL="http://127.0.0.1:8765/index.html"
+echo "Testing Yandex-mocked launch: $TARGET_URL"
 
 PROFILE_DIR="$(mktemp -d)"
 mkdir -p "$PROFILE_DIR/Default"
-printf '%s\n' '{"intl":{"accept_languages":"ru-RU,ru"}}' > "$PROFILE_DIR/Default/Preferences"
+printf '%s\n' '{"intl":{"accept_languages":"en-US,en"}}' > "$PROFILE_DIR/Default/Preferences"
 
 "$BROWSER" \
   --headless=new \
   --no-sandbox \
   --disable-dev-shm-usage \
-  --allow-file-access-from-files \
   --use-angle=swiftshader \
   --enable-unsafe-swiftshader \
   --autoplay-policy=no-user-gesture-required \
   --enable-logging=stderr \
   --v=0 \
-  --lang=ru-RU \
+  --lang=en-US \
   --window-size=1280,720 \
   --remote-debugging-address=127.0.0.1 \
   --remote-debugging-port=9222 \
   --user-data-dir="$PROFILE_DIR" \
-  "$FILE_URL" \
+  "$TARGET_URL" \
   >dist/runtime-browser.stdout 2>dist/runtime-browser.log &
 BROWSER_PID=$!
 
 cleanup() {
   kill "$BROWSER_PID" 2>/dev/null || true
+  kill "$SERVER_PID" 2>/dev/null || true
   sleep 0.2
+  rm -f dist/sdk.js
   rm -rf "$PROFILE_DIR" 2>/dev/null || true
 }
 trap cleanup EXIT
 
-python3 - "$FILE_URL" <<'PY'
-from pathlib import Path
-import sys
-path = Path('scripts/cdp-smoke.js.txt')
-text = path.read_text()
-text = text.replace("const targetUrl = 'http://127.0.0.1:8765/index.html';", "const targetUrl = " + repr(sys.argv[1]) + ";")
-text = text.replace('45000);', '120000);')
-text = text.replace('30000);', '90000);')
-Path('/tmp/cdp-smoke.js').write_text(text)
-PY
+cp scripts/cdp-smoke.js.txt /tmp/cdp-smoke.js
 node /tmp/cdp-smoke.js
 
 test -s dist/runtime-smoke.png
@@ -63,7 +89,10 @@ echo "Runtime screenshot: ${SIZE} bytes"
 grep -q 'data-starfighter-runtime-initialized="1"' dist/runtime-dom.html
 grep -q 'data-starfighter-title-ready="1"' dist/runtime-dom.html
 grep -q 'data-starfighter-first-frame="1"' dist/runtime-dom.html
-echo "Direct file runtime markers: runtime + title + first-frame OK"
+grep -q 'data-starfighter-language-source="ysdk.environment.i18n.lang"' dist/runtime-dom.html
+grep -q 'data-starfighter-language="ru"' dist/runtime-dom.html
+grep -q 'data-qa-loading-ready="1"' dist/runtime-dom.html
+echo "Runtime markers: SDK language ru + Game Ready + title + first-frame OK"
 
 if grep -Eqi 'Aborted\(|RuntimeError:|unhandled exception|failed to asynchronously prepare wasm|wasm streaming compile failed' dist/runtime-browser.log; then
   echo "Runtime abort/error detected in browser log" >&2
