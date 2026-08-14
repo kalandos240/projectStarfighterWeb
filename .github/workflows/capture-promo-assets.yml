@@ -1,0 +1,193 @@
+name: Capture real Project Starfighter promo assets
+
+on:
+  push:
+    paths:
+      - '.github/workflows/capture-promo-assets.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout port repository
+        uses: actions/checkout@v6
+
+      - name: Checkout pinned upstream for official icon
+        uses: actions/checkout@v6
+        with:
+          repository: pr-starfighter/starfighter
+          ref: 315d0456723e19a153dbc5ef37d5cfb27b4cb36c
+          path: upstream
+
+      - name: Download latest validated WebAssembly artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p artifact
+          gh run download 31816768354 --repo "$GITHUB_REPOSITORY" -n starfighter-yandexgames-v2 -D artifact
+          test -s artifact/dist/index.html
+          rm -rf dist
+          cp -a artifact/dist dist
+          rm -f dist/sdk.js
+
+      - name: Install real official icon asset
+        run: |
+          mkdir -p promo
+          cp upstream/mac/starfighter/Assets.xcassets/AppIcon.appiconset/web_hi_res_512.png promo/icon-official-512.png
+          file promo/icon-official-512.png
+
+      - name: Capture Russian and English screenshots from validated browser build
+        shell: bash
+        run: |
+          set -euo pipefail
+          BROWSER="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          mkdir -p promo/ru promo/en
+
+          cat > /tmp/starfighter-promo-server.py <<'PY'
+          from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
+          from pathlib import Path
+          import os
+          os.chdir(Path('dist'))
+          class Handler(SimpleHTTPRequestHandler):
+              def end_headers(self):
+                  self.send_header('Cache-Control', 'no-store')
+                  super().end_headers()
+          ThreadingHTTPServer(('127.0.0.1', 8765), Handler).serve_forever()
+          PY
+          python3 /tmp/starfighter-promo-server.py >/tmp/starfighter-promo-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+
+          cat > /tmp/capture-promo.js <<'JS'
+          const fs = require('fs');
+          const port = process.env.CDP_PORT;
+          const endpoint = `http://127.0.0.1:${port}/json/list`;
+          const targetUrl = 'http://127.0.0.1:8765/index.html';
+          const outDir = process.env.OUT_DIR;
+          const expectedLang = process.env.EXPECTED_LANG;
+          function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+          async function findTarget() {
+            const deadline = Date.now() + 90000;
+            while (Date.now() < deadline) {
+              try {
+                const items = await (await fetch(endpoint)).json();
+                const t = items.find(x => x.type === 'page' && x.url.startsWith(targetUrl));
+                if (t?.webSocketDebuggerUrl) return t;
+              } catch (_) {}
+              await sleep(200);
+            }
+            throw new Error('Timed out waiting for Chromium target');
+          }
+          async function main() {
+            fs.mkdirSync(outDir, { recursive: true });
+            const target = await findTarget();
+            const ws = new WebSocket(target.webSocketDebuggerUrl);
+            await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject; });
+            let nextId = 1; const pending = new Map();
+            ws.onmessage = e => {
+              const m = JSON.parse(e.data);
+              if (m.id && pending.has(m.id)) {
+                const p = pending.get(m.id); pending.delete(m.id);
+                m.error ? p.reject(new Error(JSON.stringify(m.error))) : p.resolve(m.result || {});
+              }
+            };
+            function send(method, params = {}) {
+              return new Promise((resolve, reject) => {
+                const id = nextId++; pending.set(id, {resolve, reject});
+                ws.send(JSON.stringify({id, method, params}));
+              });
+            }
+            async function evaluate(expression) {
+              const r = await send('Runtime.evaluate', {expression, returnByValue: true});
+              if (r.exceptionDetails) throw new Error(JSON.stringify(r.exceptionDetails));
+              return r.result?.value;
+            }
+            async function waitFor(expr, label, timeout = 60000) {
+              const end = Date.now() + timeout;
+              while (Date.now() < end) {
+                try { if (await evaluate(expr)) return; } catch (_) {}
+                await sleep(200);
+              }
+              throw new Error('Timeout: ' + label);
+            }
+            async function key(code, key, vk) {
+              await send('Input.dispatchKeyEvent', {type:'keyDown', code, key, windowsVirtualKeyCode:vk, nativeVirtualKeyCode:vk, text:key === ' ' ? ' ' : undefined});
+              await sleep(100);
+              await send('Input.dispatchKeyEvent', {type:'keyUp', code, key, windowsVirtualKeyCode:vk, nativeVirtualKeyCode:vk});
+              await sleep(300);
+            }
+            async function space() { await key('Space',' ',32); }
+            async function shot(name) {
+              const s = await send('Page.captureScreenshot', {format:'png', captureBeyondViewport:false});
+              fs.writeFileSync(`${outDir}/${name}.png`, Buffer.from(s.data, 'base64'));
+              console.log('captured', expectedLang, name);
+            }
+            await send('Runtime.enable'); await send('Page.enable');
+            await waitFor(`document.documentElement?.getAttribute('data-starfighter-first-frame') === '1'`, 'first frame', 120000);
+            await waitFor(`globalThis.starfighterYsdk?.environment?.i18n?.lang === ${JSON.stringify(expectedLang)}`, 'SDK language');
+            await sleep(600); await shot('01-title');
+            await space();
+            await waitFor(`document.documentElement?.getAttribute('data-starfighter-menu-ready') === '1'`, 'main menu');
+            await sleep(500); await shot('02-menu');
+            await space();
+            await waitFor(`document.documentElement?.getAttribute('data-starfighter-difficulty-ready') === '1'`, 'difficulty menu');
+            await sleep(500); await shot('03-difficulty');
+            await space();
+            await waitFor(`globalThis.starfighterGameplayDesired === true`, 'mission gameplay', 90000);
+            await sleep(900); await shot('04-mission-objective');
+            await space();
+            await sleep(1400); await shot('05-gameplay');
+            await key('ArrowRight','ArrowRight',39);
+            await sleep(900); await shot('06-gameplay-action');
+            ws.close();
+          }
+          main().catch(e => { console.error(e); process.exit(1); });
+          JS
+
+          capture_lang() {
+            local lang="$1" port="$2" out="$3"
+            cat > dist/sdk.js <<JS
+globalThis.YaGames = {
+  init: async function () {
+    return {
+      environment: { i18n: { lang: '${lang}' } },
+      features: { LoadingAPI: { ready() {} }, GameplayAPI: { start() {}, stop() {} } },
+      on() {},
+      getPlayer: async function () { return { getData: async () => ({}), setData: async () => {} }; },
+      adv: { showFullscreenAdv() {} }
+    };
+  }
+};
+JS
+            local profile
+            profile="$(mktemp -d)"
+            "$BROWSER" --headless=new --no-sandbox --disable-dev-shm-usage --use-angle=swiftshader --enable-unsafe-swiftshader --autoplay-policy=no-user-gesture-required --window-size=1280,720 --remote-debugging-address=127.0.0.1 --remote-debugging-port="$port" --user-data-dir="$profile" "$target" >/tmp/browser-${lang}.out 2>/tmp/browser-${lang}.log &
+            local browser_pid=$!
+            CDP_PORT="$port" OUT_DIR="$out" EXPECTED_LANG="$lang" node /tmp/capture-promo.js
+            kill "$browser_pid" 2>/dev/null || true
+            wait "$browser_pid" 2>/dev/null || true
+            rm -rf "$profile"
+          }
+
+          target='http://127.0.0.1:8765/index.html'
+          capture_lang ru 9222 promo/ru
+          capture_lang en 9223 promo/en
+          rm -f dist/sdk.js
+
+          test -s promo/ru/02-menu.png
+          test -s promo/ru/05-gameplay.png
+          test -s promo/en/02-menu.png
+          test -s promo/en/05-gameplay.png
+          find promo -type f -maxdepth 2 -print -exec file {} \;
+
+      - name: Upload real promo source assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: starfighter-real-promo-assets
+          path: promo/
+          retention-days: 7
