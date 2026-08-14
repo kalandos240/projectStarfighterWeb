@@ -90,6 +90,7 @@ jobs:
             -sEXIT_RUNTIME=0 \
             -sSINGLE_FILE=1 \
             -sSINGLE_FILE_BINARY_ENCODE=0 \
+            -sEXPORTED_FUNCTIONS='["_main","_save"]' \
             -lidbfs.js \
             --pre-js web/platform-pre.js \
             --embed-file runtime-assets/data@/data \
