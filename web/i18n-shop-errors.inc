@@ -1,3 +1,4 @@
+    {"Information", "Информация"},
     {"You don't have enough money", "Недостаточно денег"},
     {"Cannot upgrade ship", "Невозможно улучшить корабль"},
     {"Hardware capacity has been reached", "Достигнут предел оборудования"},
@@ -8,3 +9,6 @@
     {"You already have that weapon", "Это оружие уже установлено"},
     {"This weapon's ammo limit has been reached", "Достигнут предел боезапаса этого оружия"},
     {"%s (N/A)", "%s (Н/Д)"},
+    {"Shield: %d", "Щит: %d"},
+    {"Cash: $%d", "Деньги: $%d"},
+    {"Plasma Cells: %.3d", "Плазменные ячейки: %.3d"},
