@@ -27,7 +27,9 @@ jobs:
           path: upstream
 
       - name: Apply web UI localization patches
-        run: python3 scripts/patch_hardcoded_ui.py.txt
+        run: |
+          python3 scripts/patch_hardcoded_ui.py.txt
+          python3 scripts/patch_shop_buttons.py.txt
 
       - name: Audit Russian localization coverage
         run: |
