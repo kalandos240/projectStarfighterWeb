@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -8,18 +8,40 @@
   <script src="/sdk.js"></script>
   <style>
     html,body{margin:0;width:100%;height:100%;background:#000;overflow:hidden}
-    body{display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif}
-    #canvas{width:100%;height:100%;object-fit:contain;outline:none;display:block}
-    #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;background:#000;z-index:10}
+    body{display:flex;align-items:center;justify-content:center;font-family:Arial,Helvetica,sans-serif}
+    #canvas{
+      width:min(100vw,133.333333vh);
+      height:min(100vh,75vw);
+      max-width:100vw;
+      max-height:100vh;
+      aspect-ratio:4/3;
+      outline:none;
+      display:block;
+      image-rendering:auto;
+    }
+    #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;background:#000;z-index:10;font-size:18px;font-weight:600}
     #loading.hidden{display:none}
   </style>
 </head>
 <body>
-  <div id="loading">Loading Project: Starfighter…</div>
+  <div id="loading">Загрузка Project: Starfighter…</div>
   <canvas id="canvas" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
   <script>
     const canvas=document.getElementById('canvas');
     const loading=document.getElementById('loading');
+
+    const starfighterControlKeys=new Set([
+      'ArrowUp','ArrowDown','ArrowLeft','ArrowRight',
+      'KeyW','KeyA','KeyS','KeyD','KeyE','KeyJ','KeyK',
+      'Space','ControlLeft','ControlRight','ShiftLeft','ShiftRight','Escape'
+    ]);
+    window.addEventListener('keydown',function(event){
+      if(starfighterControlKeys.has(event.code))event.preventDefault();
+    },{passive:false});
+    window.addEventListener('keyup',function(event){
+      if(starfighterControlKeys.has(event.code))event.preventDefault();
+    },{passive:false});
+    canvas.addEventListener('mousedown',function(){canvas.focus();});
 
     globalThis.starfighterSessionStartedAt=Date.now();
     globalThis.starfighterLastInterstitialAt=0;
