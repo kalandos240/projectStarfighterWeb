@@ -1,0 +1,37 @@
+from pathlib import Path
+
+
+def replace_once(path, old, new, label):
+    text = path.read_text(encoding='utf-8')
+    if new in text:
+        return
+    if old not in text:
+        raise SystemExit(f'{label} marker not found in {path}')
+    path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+
+title = Path('upstream/src/title.c')
+replacements = [
+    ('gfx_createTextObject(TS_DILIGENTCIRCLE, "THE DILIGENT CIRCLE", 0, 0, FONT_WHITE);',
+     'gfx_createTextObject(TS_DILIGENTCIRCLE, _("THE DILIGENT CIRCLE"), 0, 0, FONT_WHITE);',
+     'Diligent Circle title'),
+    ('gfx_createTextObject(TS_PRESENTS, "PRESENTS", 0, 0, FONT_WHITE);',
+     'gfx_createTextObject(TS_PRESENTS, _("PRESENTS"), 0, 0, FONT_WHITE);',
+     'Presents title'),
+    ('gfx_createTextObject(TS_AN_SDL_GAME, "AN SDL GAME", 0, 0, FONT_WHITE);',
+     'gfx_createTextObject(TS_AN_SDL_GAME, _("AN SDL GAME"), 0, 0, FONT_WHITE);',
+     'SDL game title'),
+    ('gfx_createTextObject(TS_ORIGINALLY_BY, "ORIGINALLY BY", 0, 0, FONT_WHITE);',
+     'gfx_createTextObject(TS_ORIGINALLY_BY, _("ORIGINALLY BY"), 0, 0, FONT_WHITE);',
+     'Originally by title'),
+]
+for old, new, label in replacements:
+    replace_once(title, old, new, label)
+
+save = Path('upstream/src/save.c')
+replace_once(
+    save,
+    'strcpy(saveSlot[i], "Corrupt Game Data");',
+    'strcpy(saveSlot[i], _("Corrupt Game Data"));',
+    'Corrupt save label',
+)
