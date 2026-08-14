@@ -1,0 +1,39 @@
+name: Russian localization audit
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: starfighter-i18n-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit-i18n:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout port repository
+        uses: actions/checkout@v6
+
+      - name: Checkout Project Starfighter upstream
+        uses: actions/checkout@v6
+        with:
+          repository: pr-starfighter/starfighter
+          ref: 315d0456723e19a153dbc5ef37d5cfb27b4cb36c
+          path: upstream
+
+      - name: Audit Russian localization
+        run: |
+          mkdir -p dist
+          cp scripts/audit_i18n.py.txt /tmp/audit_i18n.py
+          python3 /tmp/audit_i18n.py
+
+      - name: Upload localization report
+        uses: actions/upload-artifact@v4
+        with:
+          name: starfighter-i18n-audit
+          path: dist/i18n-audit.txt
