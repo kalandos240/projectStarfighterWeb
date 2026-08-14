@@ -51,6 +51,12 @@ gfx_path.write_text(gfx_source)
 shutil.copyfile('web/web_i18n.c.txt', 'upstream/src/web_i18n.c')
 i18n_path = Path('upstream/src/web_i18n.c')
 i18n_source = i18n_path.read_text()
+i18n_probe_old = "    const lang = String(sdkLang || navigator.language || '').toLowerCase();\n"
+i18n_probe_new = "    const lang = String(sdkLang || navigator.language || String()).toLowerCase();\n"
+if i18n_probe_new not in i18n_source:
+    if i18n_probe_old not in i18n_source:
+        raise SystemExit('web language probe marker not found')
+    i18n_source = i18n_source.replace(i18n_probe_old, i18n_probe_new, 1)
 i18n_marker = '    {NULL, NULL}\n};'
 i18n_fragments = []
 for fragment_path in sorted(Path('web').glob('i18n-*.inc')):
