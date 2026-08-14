@@ -64,6 +64,9 @@ async function main() {
       expression,
       returnByValue: true
     });
+    if (result.exceptionDetails) {
+      throw new Error('Browser evaluation failed: ' + JSON.stringify(result.exceptionDetails));
+    }
     return result.result?.value;
   }
 
@@ -136,6 +139,60 @@ async function main() {
   await sleep(1500);
   console.log('Difficulty confirmation entered actual mission gameplay');
 
+  await evaluate(`(() => {
+    const root = document.documentElement;
+    globalThis.__qaGameplayCalls = [];
+    globalThis.starfighterYsdk = {
+      features: {
+        GameplayAPI: {
+          start() { globalThis.__qaGameplayCalls.push('start'); root.setAttribute('data-qa-gameplay', 'start'); },
+          stop() { globalThis.__qaGameplayCalls.push('stop'); root.setAttribute('data-qa-gameplay', 'stop'); }
+        }
+      },
+      adv: {
+        showFullscreenAdv(options) {
+          options.callbacks.onOpen();
+          options.callbacks.onClose(true);
+        }
+      }
+    };
+    globalThis.starfighterGameplayReported = false;
+    globalThis.starfighterGameplayStart();
+    return true;
+  })()`);
+
+  await waitFor(`document.documentElement.getAttribute('data-qa-gameplay') === 'start' && globalThis.starfighterGameplayReported === true`, 'GameplayAPI start', 5000);
+  await evaluate(`globalThis.starfighterSetPlatformPaused(true)`);
+  await waitFor(`globalThis.starfighterPlatformPaused === true && globalThis.starfighterGameplayReported === false && document.documentElement.getAttribute('data-qa-gameplay') === 'stop'`, 'GameplayAPI stop on platform pause', 5000);
+  await evaluate(`globalThis.starfighterSetPlatformPaused(false)`);
+  await waitFor(`globalThis.starfighterPlatformPaused === false && globalThis.starfighterGameplayReported === true && document.documentElement.getAttribute('data-qa-gameplay') === 'start'`, 'GameplayAPI restart on platform resume', 5000);
+  console.log('Yandex GameplayAPI state follows gameplay pause/resume');
+
+  await evaluate(`(() => {
+    globalThis.starfighterPlayer = {
+      setData: async function(payload, flush) {
+        globalThis.__qaCloudPayload = payload;
+        document.documentElement.setAttribute('data-qa-cloud-flush', flush ? '1' : '0');
+      }
+    };
+    globalThis.starfighterSdkPromise = Promise.resolve(globalThis.starfighterYsdk);
+    FS.writeFile('/home/web_user/.config/starfighter/save05.sav', 'qa-cloud-save');
+    globalThis.starfighterScheduleCloudPush();
+    return true;
+  })()`);
+  await waitFor(`document.documentElement.getAttribute('data-starfighter-cloud-saved') === '1' && document.documentElement.getAttribute('data-qa-cloud-flush') === '1' && globalThis.__qaCloudPayload && globalThis.__qaCloudPayload.starfighterCloudSaveV1 && globalThis.__qaCloudPayload.starfighterCloudSaveV1.version === 1`, 'Yandex cloud save bridge', 5000);
+  console.log('Yandex Player Data cloud-save bridge wrote versioned save payload');
+
+  await evaluate(`(() => {
+    globalThis.starfighterGameplayStop();
+    globalThis.starfighterSessionStartedAt = Date.now() - 61000;
+    globalThis.starfighterLastInterstitialAt = 0;
+    globalThis.starfighterMissionEnded();
+    return true;
+  })()`);
+  await waitFor(`document.documentElement.getAttribute('data-starfighter-ad-open') === '1' && document.documentElement.getAttribute('data-starfighter-ad-closed') === '1' && globalThis.starfighterPlatformPaused === false && globalThis.starfighterGameplayReported === false`, 'fullscreen ad pause/close lifecycle', 5000);
+  console.log('Fullscreen ad lifecycle leaves platform resumed and gameplay stopped between missions');
+
   const markers = await evaluate(`(() => {
     const e = document.documentElement;
     return {
@@ -148,7 +205,8 @@ async function main() {
       menu: e.getAttribute('data-starfighter-menu-ready'),
       difficulty: e.getAttribute('data-starfighter-difficulty-ready'),
       platformReady: e.getAttribute('data-starfighter-platform-ready'),
-      gameplayDesired: globalThis.starfighterGameplayDesired === true
+      gameplayDesired: globalThis.starfighterGameplayDesired === false,
+      gameplayCalls: globalThis.__qaGameplayCalls
     };
   })()`);
   console.log('Runtime markers:', JSON.stringify(markers));
