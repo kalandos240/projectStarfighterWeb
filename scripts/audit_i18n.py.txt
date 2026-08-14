@@ -80,6 +80,24 @@ def scan_hardcoded_ui(src_root):
     return sorted(set(findings))
 
 
+def scan_bitmap_ui(src_root, translated):
+    issues = []
+    shop = src_root / 'shop.c'
+    text = shop.read_text(encoding='utf-8', errors='replace') if shop.exists() else ''
+    required = [
+        ('Buy', 'gfx_renderUnicode(_("Buy")'),
+        ('Sell', 'gfx_renderUnicode(_("Sell")'),
+    ]
+    for label, marker in required:
+        if label not in translated:
+            issues.append(f'{label}: missing Russian translation entry')
+        if marker not in text:
+            issues.append(f'{label}: English bitmap button was not replaced by localized runtime text')
+    if 'gfx_sprites[SP_BUY]->w' not in text or 'gfx_sprites[SP_SELL]->w' not in text:
+        issues.append('Buy/Sell: click hitboxes are not tied to localized button dimensions')
+    return issues
+
+
 root = Path('.')
 pot = root / 'upstream/locale/pr-starfighter.pot'
 if not pot.exists():
@@ -112,6 +130,7 @@ if plural_bridge:
 ignored = {'data/TakaoPGothic.ttf'}
 missing = sorted(msgids - translated - ignored)
 hardcoded = scan_hardcoded_ui(root / 'upstream/src')
+bitmap_ui = scan_bitmap_ui(root / 'upstream/src', translated)
 
 out = root / 'dist/i18n-audit.txt'
 out.parent.mkdir(parents=True, exist_ok=True)
@@ -124,10 +143,13 @@ with out.open('w', encoding='utf-8') as fp:
     fp.write(f'\nHardcoded visible English candidates: {len(hardcoded)}\n')
     for filename, line, kind, value in hardcoded:
         fp.write(f'{filename}:{line} [{kind}] {value.replace(chr(10), "\\n")}\n')
+    fp.write(f'\nBitmap UI localization issues: {len(bitmap_ui)}\n')
+    for issue in bitmap_ui:
+        fp.write(issue + '\n')
     fp.write('\nLegal attribution strings are intentionally preserved verbatim.\n')
 
 print(out.read_text(encoding='utf-8'))
 if '--strict' in sys.argv and missing:
     raise SystemExit(f'{len(missing)} untranslated POT msgids remain')
-if '--strict-ui' in sys.argv and hardcoded:
-    raise SystemExit(f'{len(hardcoded)} hardcoded visible English strings remain')
+if '--strict-ui' in sys.argv and (hardcoded or bitmap_ui):
+    raise SystemExit(f'{len(hardcoded)} hardcoded visible English strings and {len(bitmap_ui)} bitmap UI localization issues remain')
