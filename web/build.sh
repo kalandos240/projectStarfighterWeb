@@ -58,6 +58,7 @@ emcc "${SOURCES[@]}" \
   -sEXIT_RUNTIME=0 \
   -sSINGLE_FILE=1 \
   -sSINGLE_FILE_BINARY_ENCODE=0 \
+  -sEXPORTED_FUNCTIONS='["_main","_save"]' \
   -lidbfs.js \
   --pre-js "$PORT_ROOT/web/platform-pre-release.txt" \
   --embed-file "$ASSETS/data@/data" \
