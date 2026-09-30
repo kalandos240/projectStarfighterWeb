@@ -1,0 +1,8 @@
+    {"GAME OVER", "ИГРА ОКОНЧЕНА"},
+    {"TARGET", "ЦЕЛЬ"},
+    {"SID", "СИД"},
+    {"PHOEBE", "ФИБИ"},
+    {"URSULA", "УРСУЛА"},
+    {"KLINE", "КЛАЙН"},
+    {"If I had to guess, it's probably a Space key, left mouse button, or B button for the plasma cannon.", "Для плазменной пушки используй Space или левую кнопку мыши."},
+    {"Rockets... those would probably be the Enter key, right mouse button, or an A button.", "Ракеты запускаются Enter или правой кнопкой мыши."},

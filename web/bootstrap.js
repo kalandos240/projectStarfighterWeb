@@ -8,7 +8,7 @@ document.addEventListener('contextmenu', function (event) {
 const starfighterControlKeys = new Set([
   'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
   'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyE', 'KeyJ', 'KeyK',
-  'Space', 'ControlLeft', 'ControlRight', 'ShiftLeft', 'ShiftRight', 'Escape'
+  'Space', 'Enter', 'ShiftLeft', 'ShiftRight', 'Escape'
 ]);
 
 window.addEventListener('keydown', function (event) {

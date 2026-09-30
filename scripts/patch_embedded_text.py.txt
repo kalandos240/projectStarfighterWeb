@@ -1,0 +1,107 @@
+from pathlib import Path
+
+
+def replace_once(path, old, new, label):
+    text = path.read_text(encoding='utf-8')
+    if new in text:
+        return
+    if old not in text:
+        raise SystemExit(f'{label} marker not found in {path}')
+    path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+
+title = Path('upstream/src/title.c')
+replace_once(title, '\tint skip = 0;\n', '\tint skip = 1;\n', 'skip intro')
+
+replace_once(
+    title,
+    '''\tSDL_Surface *prlogo, *sflogo;
+\tprlogo = gfx_loadImage("gfx/prlogo.png");
+\tsflogo = gfx_loadImage("gfx/sflogo.png");
+''',
+    '''\tSDL_Surface *prlogo;
+\tprlogo = gfx_loadImage("gfx/prlogo.png");
+''',
+    'English title bitmap load',
+)
+
+replace_once(
+    title,
+    '''\tcopyrightText = gfx_createSurface(screen->w, 3 * MENU_SPACING);
+\tgfx_renderString("Copyright Parallel Realities 2003",
+\t\t5, 0, FONT_WHITE, 0, copyrightText);
+\tgfx_renderString("Copyright Guus Sliepen, Astrid S. de Wijn and others 2012",
+\t\t5, MENU_SPACING, FONT_WHITE, 0, copyrightText);
+\tgfx_renderString("Copyright 2015-2023 Diligent Circle",
+\t\t5, 2 * MENU_SPACING, FONT_WHITE, 0, copyrightText);
+''',
+    '''\t/* Legal attribution remains packaged in COPYING/LICENSES/CREDITS.
+\t * Do not render English legal text over the Russian title screen. */
+\tcopyrightText = gfx_createSurface(1, 1);
+''',
+    'title copyright overlay',
+)
+
+replace_once(
+    title,
+    '''\t\t\tscreen_blit(sflogo, ((screen->w - sflogo->w) / 2), ((screen->h - sflogo->h) / 3));
+''',
+    '''\t\t\t/* English bitmap title intentionally omitted in the web release. */
+''',
+    'English title bitmap blit',
+)
+
+replace_once(
+    title,
+    '''\t\t\t\tx = 0;
+\t\t\t\ty = screen->h - copyrightText->h;
+\t\t\t\tscreen_blit(copyrightText, x, y);
+\t\t\t\tscreen_addBuffer(x, y, copyrightText->w, copyrightText->h);
+
+''',
+    '''\t\t\t\t/* No language-specific copyright overlay on the gameplay canvas. */
+
+''',
+    'copyright overlay blit',
+)
+
+replace_once(
+    title,
+    '''\tSDL_FreeSurface(prlogo);
+\tSDL_FreeSurface(sflogo);
+\tSDL_FreeSurface(copyrightText);
+''',
+    '''\tSDL_FreeSurface(prlogo);
+\tSDL_FreeSurface(copyrightText);
+''',
+    'English title bitmap free',
+)
+
+game = Path('upstream/src/game.c')
+replace_once(
+    game,
+    '\tSDL_Surface *gameover = gfx_loadImage("gfx/gameover.png");\n',
+    '\tSDL_Surface *gameover = gfx_createTextSurface(_("GAME OVER"), FONT_RED);\n',
+    'game-over bitmap',
+)
+
+gfx = Path('upstream/src/gfx.c')
+indicator_replacements = [
+    ('\tgfx_sprites[SP_INDICATOR_TARGET] = gfx_loadImage("gfx/targetText.png");\n',
+     '\tgfx_sprites[SP_INDICATOR_TARGET] = gfx_createTextSurface(_("TARGET"), FONT_RED);\n',
+     'target indicator'),
+    ('\tgfx_sprites[SP_INDICATOR_SID] = gfx_loadImage("gfx/sidText.png");\n',
+     '\tgfx_sprites[SP_INDICATOR_SID] = gfx_createTextSurface(_("SID"), FONT_GREEN);\n',
+     'Sid indicator'),
+    ('\tgfx_sprites[SP_INDICATOR_PHOEBE] = gfx_loadImage("gfx/phoebeText.png");\n',
+     '\tgfx_sprites[SP_INDICATOR_PHOEBE] = gfx_createTextSurface(_("PHOEBE"), FONT_GREEN);\n',
+     'Phoebe indicator'),
+    ('\tgfx_sprites[SP_INDICATOR_URSULA] = gfx_loadImage("gfx/ursulaText.png");\n',
+     '\tgfx_sprites[SP_INDICATOR_URSULA] = gfx_createTextSurface(_("URSULA"), FONT_GREEN);\n',
+     'Ursula indicator'),
+    ('\tgfx_sprites[SP_INDICATOR_KLINE] = gfx_loadImage("gfx/klineText.png");\n',
+     '\tgfx_sprites[SP_INDICATOR_KLINE] = gfx_createTextSurface(_("KLINE"), FONT_RED);\n',
+     'Kline indicator'),
+]
+for old, new, label in indicator_replacements:
+    replace_once(gfx, old, new, label)

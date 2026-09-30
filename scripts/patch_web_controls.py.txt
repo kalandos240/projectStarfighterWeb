@@ -1,49 +1,61 @@
 from pathlib import Path
 
 path = Path('upstream/src/player.c')
-source = path.read_text()
+source = path.read_text(encoding='utf-8')
 
-map_marker = '''static enum keys mapkey(int code) {
+start_marker = 'static enum keys mapkey(int code) {'
+end_marker = '\nvoid player_getInput()'
+start = source.find(start_marker)
+end = source.find(end_marker, start)
+if start == -1 or end == -1:
+    raise SystemExit('mapkey function markers not found')
+
+# Web build: keep a complete layout-independent control path and remove keys that
+# browsers/OSes reserve or that moderation can interpret as system hotkeys.
+replacement = '''static enum keys mapkey(int code) {
 \tswitch (code) {
-'''
-map_replacement = '''static enum keys mapkey(int code) {
-#ifdef __EMSCRIPTEN__
-\t/* Browser-friendly controls: WASD movement, Space/LMB primary fire,
-\t * Ctrl/RMB secondary fire, E/Shift weapon switch. Arrow keys and the
-\t * original alternatives remain available below as fallbacks. */
-\tswitch (code)
-\t{
+\t\tcase SDLK_UP:
+\t\tcase SDLK_KP_8:
 \t\tcase SDLK_w:
 \t\t\treturn KEY_UP;
+\t\tcase SDLK_DOWN:
+\t\tcase SDLK_KP_2:
+\t\tcase SDLK_KP_5:
 \t\tcase SDLK_s:
 \t\t\treturn KEY_DOWN;
+\t\tcase SDLK_LEFT:
+\t\tcase SDLK_KP_4:
 \t\tcase SDLK_a:
 \t\t\treturn KEY_LEFT;
+\t\tcase SDLK_RIGHT:
+\t\tcase SDLK_KP_6:
 \t\tcase SDLK_d:
 \t\t\treturn KEY_RIGHT;
 \t\tcase SDLK_SPACE:
 \t\tcase SDLK_j:
 \t\t\treturn KEY_FIRE;
-\t\tcase SDLK_LCTRL:
-\t\tcase SDLK_RCTRL:
+\t\tcase SDLK_RETURN:
 \t\tcase SDLK_k:
 \t\t\treturn KEY_ALTFIRE;
+\t\tcase SDLK_LSHIFT:
+\t\tcase SDLK_RSHIFT:
 \t\tcase SDLK_e:
 \t\t\treturn KEY_SWITCH;
+\t\tcase SDLK_p:
+\t\tcase SDLK_PAUSE:
+\t\t\treturn KEY_PAUSE;
 \t\tcase SDLK_ESCAPE:
 \t\t\tif (engine.gameSection == SECTION_GAME)
 \t\t\t\treturn KEY_PAUSE;
-\t\t\tbreak;
+\t\t\treturn KEY_ESCAPE;
+\t\tcase SDLK_q:
+\t\t\treturn KEY_ESCAPE;
 \t\tdefault:
-\t\t\tbreak;
+\t\t\treturn KEY_DUMMY;
 \t}
-#endif
-\tswitch (code) {
+}
 '''
-if map_replacement not in source:
-    if map_marker not in source:
-        raise SystemExit('mapkey marker not found')
-    source = source.replace(map_marker, map_replacement, 1)
+source = source[:start] + replacement + source[end:]
 
 mouse_down_old = '''\t\t\tcase SDL_MOUSEBUTTONDOWN:
 \t\t\t\tif (engine.gameSection == SECTION_INTERMISSION)
@@ -86,4 +98,25 @@ if mouse_down_new not in source:
         raise SystemExit('mouse button marker not found')
     source = source.replace(mouse_down_old, mouse_down_new, 1)
 
-path.write_text(source)
+path.write_text(source, encoding='utf-8')
+
+# Keep tutorial/help dialogue aligned with the safe browser controls in EN too.
+event_path = Path('upstream/src/event.c')
+event_source = event_path.read_text(encoding='utf-8')
+old_ctrl = '''_("If I had to guess, it's probably"
+\t\t\t\t\t" a Ctrl key or a B button for the plasma cannon.")'''
+new_ctrl = '''_("If I had to guess, it's probably a Space key, left mouse button,"
+\t\t\t\t\t" or B button for the plasma cannon.")'''
+if new_ctrl not in event_source:
+    if old_ctrl not in event_source:
+        raise SystemExit('plasma tutorial control marker not found')
+    event_source = event_source.replace(old_ctrl, new_ctrl, 1)
+
+old_rocket = '_("Rockets... those would probably be a space bar or an A button.")'
+new_rocket = '_("Rockets... those would probably be the Enter key, right mouse button, or an A button.")'
+if new_rocket not in event_source:
+    if old_rocket not in event_source:
+        raise SystemExit('rocket tutorial control marker not found')
+    event_source = event_source.replace(old_rocket, new_rocket, 1)
+
+event_path.write_text(event_source, encoding='utf-8')
