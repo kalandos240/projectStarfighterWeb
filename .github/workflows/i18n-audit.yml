@@ -26,10 +26,12 @@ jobs:
           ref: 315d0456723e19a153dbc5ef37d5cfb27b4cb36c
           path: upstream
 
-      - name: Apply web UI localization patches
+      - name: Apply final web localization patches
         run: |
           python3 scripts/patch_hardcoded_ui.py.txt
           python3 scripts/patch_shop_buttons.py.txt
+          python3 scripts/patch_web_release.py.txt
+          python3 scripts/patch_menu_marker.py.txt
 
       - name: Audit Russian localization
         run: |
