@@ -232,3 +232,21 @@ jobs:
           path: |
             starfighter-yandexgames.zip
             dist/
+
+      - name: Split archive for reliable transfer
+        run: split -b 16000000 -d starfighter-yandexgames.zip starfighter-archive.part
+      - uses: actions/upload-artifact@v4
+        with:
+          name: starfighter-part-00
+          path: starfighter-archive.part00
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: starfighter-part-01
+          path: starfighter-archive.part01
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: starfighter-part-02
+          path: starfighter-archive.part02
+          compression-level: 0
