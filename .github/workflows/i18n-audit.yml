@@ -30,6 +30,7 @@ jobs:
         run: |
           python3 scripts/patch_hardcoded_ui.py.txt
           python3 scripts/patch_shop_buttons.py.txt
+          cp web/platform-pre-release.txt web/platform-pre.js
           python3 scripts/patch_web_release.py.txt
           python3 scripts/patch_menu_marker.py.txt
 
