@@ -29,15 +29,19 @@ python3 scripts/patch_hardcoded_ui.py.txt
 python3 scripts/patch_shop_buttons.py.txt
 python3 scripts/patch_shop_performance.py.txt
 python3 scripts/patch_hd_output.py.txt
-python3 scripts/audit_i18n.py.txt --strict --strict-ui
-python3 scripts/audit_yandex.py.txt
 python3 scripts/patch_web_release.py.txt
 python3 scripts/patch_menu_marker.py.txt
+python3 scripts/audit_i18n.py.txt --strict --strict-ui
+python3 scripts/audit_yandex.py.txt
 
 cp "$SOURCE_ROOT/data/credits.txt" "$ASSETS/data/"
 find "$SOURCE_ROOT/gfx" -maxdepth 1 -type f \( -name '*.png' -o -name '*.jpg' \) -exec cp {} "$ASSETS/gfx/" \;
 find "$SOURCE_ROOT/sound" -maxdepth 1 -type f -name '*.ogg' -exec cp {} "$ASSETS/sound/" \;
 find "$SOURCE_ROOT/music" -maxdepth 1 -type f -name '*.ogg' -exec cp {} "$ASSETS/music/" \;
+rm -f "$ASSETS/gfx/sflogo.png" "$ASSETS/gfx/gameover.png" \
+  "$ASSETS/gfx/targetText.png" "$ASSETS/gfx/sidText.png" \
+  "$ASSETS/gfx/phoebeText.png" "$ASSETS/gfx/ursulaText.png" \
+  "$ASSETS/gfx/klineText.png"
 
 test "$(find "$ASSETS/music" -type f -name '*.ogg' | wc -l)" -eq 12
 test -s "$ASSETS/data/credits.txt"
@@ -93,7 +97,7 @@ inline = [(attrs, body[:80]) for attrs, body in scripts if not re.search(src_pat
 handlers = re.findall(r'\son[a-z]+\s*=\s*["\']', html, flags=re.I)
 assert not inline, f'Inline scripts are forbidden by Yandex nonce CSP: {inline}'
 assert not handlers, 'Inline event handlers are forbidden by Yandex nonce CSP'
-assert 'aspect-ratio:16/9' in html, 'widescreen shell missing from built HTML'
+assert 'width:100vw' in html and 'height:100vh' in html, 'iframe-filling canvas missing from built HTML'
 
 diagnostics = {'i18n-audit.txt', 'yandex-moderation-audit.txt'}
 release = [p for p in root.rglob('*') if p.is_file() and not p.name.startswith('runtime-') and p.name not in diagnostics and p.name != 'sdk.js']

@@ -40,10 +40,18 @@ jobs:
           renderer = Path('upstream/src/renderer.c').read_text(encoding='utf-8')
           shell = Path('web/shell.html').read_text(encoding='utf-8')
           assert 'SDL_HINT_RENDER_SCALE_QUALITY' in renderer, 'smooth browser presentation scaling patch missing'
-          assert 'aspect-ratio:16/9' in shell, 'widescreen browser canvas is not enabled'
+          assert 'width:100vw' in shell and 'height:100vh' in shell, 'browser canvas does not fill the iframe'
           print('Shop per-frame rebuild disabled')
           print('Native Starfighter widescreen canvas enabled at 16:9')
           PY
+
+      - name: Prepare platform bridge and final web patches
+        run: |
+          cp web/platform-pre-release.txt web/platform-pre.js
+          cp scripts/patch_web_release.py.txt /tmp/patch_web.py
+          python3 /tmp/patch_web.py
+          cp scripts/patch_menu_marker.py.txt /tmp/patch_menu_marker.py
+          python3 /tmp/patch_menu_marker.py
 
       - name: Audit Russian localization coverage
         run: |
@@ -67,14 +75,6 @@ jobs:
           source emsdk/emsdk_env.sh
           emcc --version
 
-      - name: Prepare platform bridge and web patches
-        run: |
-          cp web/platform-pre-release.txt web/platform-pre.js
-          cp scripts/patch_web_release.py.txt /tmp/patch_web.py
-          python3 /tmp/patch_web.py
-          cp scripts/patch_menu_marker.py.txt /tmp/patch_menu_marker.py
-          python3 /tmp/patch_menu_marker.py
-
       - name: Stage runtime assets only
         run: |
           rm -rf runtime-assets
@@ -83,6 +83,10 @@ jobs:
           find upstream/gfx -maxdepth 1 -type f \( -name '*.png' -o -name '*.jpg' \) -exec cp {} runtime-assets/gfx/ \;
           find upstream/sound -maxdepth 1 -type f -name '*.ogg' -exec cp {} runtime-assets/sound/ \;
           find upstream/music -maxdepth 1 -type f -name '*.ogg' -exec cp {} runtime-assets/music/ \;
+          rm -f runtime-assets/gfx/sflogo.png runtime-assets/gfx/gameover.png \
+            runtime-assets/gfx/targetText.png runtime-assets/gfx/sidText.png \
+            runtime-assets/gfx/phoebeText.png runtime-assets/gfx/ursulaText.png \
+            runtime-assets/gfx/klineText.png
           echo "Runtime assets:"
           find runtime-assets -type f | sort
           test "$(find runtime-assets/music -type f -name '*.ogg' | wc -l)" -eq 12
@@ -90,6 +94,13 @@ jobs:
           test -s runtime-assets/data/credits.txt
           test ! -e runtime-assets/data/TakaoPGothic.ttf
           test ! -e runtime-assets/music/sources
+          test ! -e runtime-assets/gfx/sflogo.png
+          test ! -e runtime-assets/gfx/gameover.png
+          test ! -e runtime-assets/gfx/targetText.png
+          test ! -e runtime-assets/gfx/sidText.png
+          test ! -e runtime-assets/gfx/phoebeText.png
+          test ! -e runtime-assets/gfx/ursulaText.png
+          test ! -e runtime-assets/gfx/klineText.png
 
       - name: Build CSP-safe standalone browser target
         run: |

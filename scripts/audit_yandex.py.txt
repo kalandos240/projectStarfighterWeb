@@ -33,6 +33,12 @@ patch_ready = text('scripts/patch_loading_ready.py.txt')
 menu_patch = text('scripts/patch_menu_marker.py.txt')
 smoke = text('scripts/starfighter-smoke.sh.txt')
 repo_runtime_code = '\n'.join([shell, bootstrap, platform, gate, patch_release, patch_ads])
+player = text('upstream/src/player.c')
+event = text('upstream/src/event.c')
+starfighter_main = text('upstream/src/Starfighter.c')
+gfx_source = text('upstream/src/gfx.c')
+game_source = text('upstream/src/game.c')
+title_source = text('upstream/src/title.c')
 
 src_pattern = r'\bsrc\s*=\s*(?:"[^"]+"|\'[^\']+\'|[^\s>]+)'
 script_tags = re.findall(r'<script\b([^>]*)>(.*?)</script>', shell, flags=re.I | re.S)
@@ -51,26 +57,48 @@ require('1.19.3 GameplayAPI stop', 'sdk.features.GameplayAPI' in platform and 'g
 require('1.3 platform pause events', 'game_api_pause' in platform and 'game_api_resume' in platform, 'Yandex pause/resume events are handled')
 require('1.3 browser focus pause fallback', 'visibilitychange' in bootstrap and "window.addEventListener('blur'" in bootstrap, 'tab hide/blur pauses the platform state')
 require('4.7 ad pauses game', 'setStarfighterPlatformPaused(true)' in bootstrap and 'onOpen' in bootstrap and 'onClose' in bootstrap, 'fullscreen-ad lifecycle pauses then resumes game/audio')
-require('4.4 ad only on mission boundary', 'starfighterGameplayStop' in patch_ads and 'starfighterMissionEnded' in patch_ads and 'mission end marker' in patch_ads, 'interstitial request is attached after actual mission gameplay returns')
+require('4.4 ad only on mission boundary', 'starfighterGameplayStop' in starfighter_main and 'starfighterMissionEnded' in starfighter_main, 'final patched Starfighter.c requests interstitial only after mission gameplay returns')
 require('4.5 no rewarded ads', 'showRewardedVideo' not in repo_runtime_code, 'rewarded-ad consent requirement is N/A because rewarded ads are absent')
 require('1.9 Player object', 'getPlayer()' in platform, 'cloud bridge obtains the Yandex Player object')
 require('1.9 cloud read', '.getData(' in platform, 'saved native slots are restored from Yandex Player Data')
 require('1.9 cloud write', '.setData(' in platform, 'native save completion is mirrored to Yandex Player Data')
 require('1.9 local persistence', 'IDBFS' in platform and 'FS.syncfs' in platform, 'local save slots persist through IndexedDB')
 require('1.6 context menu disabled', "addEventListener('contextmenu'" in bootstrap and 'event.preventDefault()' in bootstrap, 'right-click browser menu is blocked without inline handlers')
-responsive_canvas = (
-    'max-width:100vw' in shell
-    and 'max-height:100vh' in shell
-    and 'aspect-ratio:' in shell
-    and 'width:min(100vw' in shell
-    and 'height:min(100vh' in shell
+
+reserved_tokens = (
+    'SDLK_LCTRL', 'SDLK_RCTRL', 'SDLK_LALT', 'SDLK_RALT', 'SDLK_F11',
+    'SDLK_BACKSPACE', 'SDLK_DELETE', 'SDLK_HOME', 'SDLK_END',
+    'SDLK_PAGEUP', 'SDLK_PAGEDOWN'
 )
-require('1.10 responsive contained canvas', responsive_canvas, 'canvas keeps a defined aspect ratio and remains contained in the viewport without clipping')
+safe_controls = (
+    all(token not in player for token in reserved_tokens)
+    and 'ControlLeft' not in bootstrap
+    and 'ControlRight' not in bootstrap
+    and 'Ctrl' not in shell
+    and 'Ctrl' not in event
+)
+require('1.6.2.6 no system/browser reserved controls', safe_controls, 'web keymap excludes Ctrl/Alt/F11/navigation-system keys and visible help no longer advertises Ctrl')
+layout_independent = (
+    'SDLK_UP' in player and 'SDLK_DOWN' in player
+    and 'SDLK_LEFT' in player and 'SDLK_RIGHT' in player
+    and 'SDLK_SPACE' in player and 'SDLK_RETURN' in player
+    and 'SDL_BUTTON_LEFT' in player and 'SDL_BUTTON_RIGHT' in player
+)
+require('1.6.2.4 layout-independent desktop controls', layout_independent, 'arrows + Space/Enter + mouse provide a complete control path independent of keyboard layout')
+
+responsive_canvas = (
+    'width:100vw' in shell
+    and 'height:100vh' in shell
+    and 'width:min(100vw' not in shell
+    and 'height:min(100vh' not in shell
+)
+require('1.10/5.9 iframe-filling canvas', responsive_canvas, 'canvas fills the Yandex iframe so scaling does not create black letterbox/pillarbox padding')
 require('1.21 archive size check', '100_000_000' in workflow and '100_000_000' in build, 'release build fails above 100 MB uncompressed')
 require('1.22 index at archive root', '-o dist/index.html' in workflow and 'index.html must be in archive root' in workflow, 'index.html is emitted to archive root and validated')
 require('1.22 safe archive paths', 'Invalid archive paths' in workflow, 'spaces and non-ASCII archive paths are rejected')
 require('3.5 legal notices packaged', 'cp upstream/COPYING upstream/LICENSES dist/' in workflow and 'copy_legal_notices.py.txt' in menu_patch, 'GPL/license/credits notices are included')
 require('2.10 strict Russian localization audit', '--strict --strict-ui' in workflow, 'release build requires zero untranslated POT and hardcoded visible UI strings')
+require('8.2.3 embedded graphics localized', 'gfx/sflogo.png' not in title_source and 'gfx/gameover.png' not in game_source and 'targetText.png' not in gfx_source and 'sidText.png' not in gfx_source and 'phoebeText.png' not in gfx_source and 'ursulaText.png' not in gfx_source and 'klineText.png' not in gfx_source, 'English text-bearing bitmap UI is replaced by localized runtime text')
 require('1.14 runtime smoke test', 'starfighter-smoke.sh.txt' in workflow and 'Starfighter mission gameplay start' in text('scripts/cdp-smoke.js.txt'), 'release build launches the game and requires actual mission gameplay')
 require('1.14 Russian menu screenshot QA', 'runtime-menu-ru.png' in smoke, 'CI captures a menu screenshot with browser=en and Yandex SDK language=ru')
 require('CSP shell scripts external', all_shell_scripts_external, 'every literal script element in shell.html has src= and no inline body')

@@ -95,6 +95,33 @@ def scan_bitmap_ui(src_root, translated):
             issues.append(f'{label}: English bitmap button was not replaced by localized runtime text')
     if 'gfx_sprites[SP_BUY]->w' not in text or 'gfx_sprites[SP_SELL]->w' not in text:
         issues.append('Buy/Sell: click hitboxes are not tied to localized button dimensions')
+
+    title_text = (src_root / 'title.c').read_text(encoding='utf-8', errors='replace')
+    game_text = (src_root / 'game.c').read_text(encoding='utf-8', errors='replace')
+    gfx_text = (src_root / 'gfx.c').read_text(encoding='utf-8', errors='replace')
+
+    if 'screen_blit(sflogo' in title_text or 'gfx_loadImage("gfx/sflogo.png")' in title_text:
+        issues.append('Title: English bitmap logo is still loaded or rendered')
+    if 'screen_blit(copyrightText' in title_text:
+        issues.append('Title: English copyright overlay is still rendered')
+    if 'gfx_loadImage("gfx/gameover.png")' in game_text:
+        issues.append('Game over: English bitmap is still used instead of localized text')
+
+    embedded = {
+        'targetText.png': 'TARGET',
+        'sidText.png': 'SID',
+        'phoebeText.png': 'PHOEBE',
+        'ursulaText.png': 'URSULA',
+        'klineText.png': 'KLINE',
+    }
+    for bitmap, key in embedded.items():
+        if bitmap in gfx_text:
+            issues.append(f'{bitmap}: text-bearing bitmap is still used at runtime')
+        if key not in translated:
+            issues.append(f'{key}: missing Russian translation for localized indicator')
+
+    if 'GAME OVER' not in translated:
+        issues.append('GAME OVER: missing Russian translation')
     return issues
 
 
