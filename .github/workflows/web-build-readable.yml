@@ -2,7 +2,7 @@ name: WebAssembly build v2
 
 on:
   push:
-    branches: [main]
+    branches: [main, fix/browser-startup-20260930]
   workflow_dispatch:
 
 permissions:
@@ -61,6 +61,11 @@ jobs:
 
       - name: Audit Yandex Games moderation integration
         run: python3 scripts/audit_yandex.py.txt
+
+      - name: Check short browser input regression
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror scripts/test_web_input_latch.c -o /tmp/test-web-input-latch
+          /tmp/test-web-input-latch
 
       - name: Checkout Emscripten SDK
         uses: actions/checkout@v6

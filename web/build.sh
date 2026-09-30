@@ -25,6 +25,7 @@ rm -rf "$OUT" "$ASSETS"
 mkdir -p "$OUT" "$ASSETS/data" "$ASSETS/gfx" "$ASSETS/sound" "$ASSETS/music"
 
 cd "$PORT_ROOT"
+cp web/platform-pre-release.txt web/platform-pre.js
 python3 scripts/patch_hardcoded_ui.py.txt
 python3 scripts/patch_shop_buttons.py.txt
 python3 scripts/patch_shop_performance.py.txt
@@ -67,7 +68,7 @@ emcc "${SOURCES[@]}" \
   -sEXIT_RUNTIME=0 \
   -sEXPORTED_FUNCTIONS='["_main","_save"]' \
   -lidbfs.js \
-  --pre-js "$PORT_ROOT/web/platform-pre-release.txt" \
+  --pre-js "$PORT_ROOT/web/platform-pre.js" \
   --pre-js "$PORT_ROOT/web/yandex-language-gate.txt" \
   --preload-file "$ASSETS/data@/data" \
   --preload-file "$ASSETS/gfx@/gfx" \

@@ -1,0 +1,30 @@
+from pathlib import Path
+import re
+path = Path('upstream/src/player.c')
+source = path.read_text(encoding='utf-8')
+marker = '\nvoid player_getInput()\n{\n'
+include = '\n#ifdef __EMSCRIPTEN__\n#include "web_input_latch.h"\n#endif\n'
+if include not in source:
+    assert marker in source, 'player_getInput marker missing'
+    source = source.replace(marker, include + marker, 1)
+    start = source.index(marker)
+    body = source[start:]
+    poll = '\twhile (SDL_PollEvent(&engine.event))\n'
+    assert poll in body, 'input poll marker missing'
+    body = body.replace(poll, '#ifdef __EMSCRIPTEN__\n\tweb_input_begin();\n#endif\n\n' + poll, 1)
+    pattern = r'(\t+)(engine\.keyState\[(?:mapkey\(engine\.event\.key\.keysym\.sym\)|KEY_FIRE|KEY_ALTFIRE|KEY_SWITCH)\] = ([01]);)'
+    handlers, rest = body.split('\t\t\tcase SDL_JOYBUTTONDOWN:', 1)
+    def replace(match):
+        indent, original, value = match.groups()
+        key = original.split('[', 1)[1].split(']', 1)[0]
+        operation = 'press' if value == '1' else 'release'
+        return '#ifdef __EMSCRIPTEN__\n' + indent + f'web_input_{operation}({key});\n#else\n' + indent + original + '\n#endif'
+    handlers, count = re.subn(pattern, replace, handlers)
+    assert count == 8, f'Expected 8 keyboard/mouse handlers, found {count}'
+    body = handlers + '\t\t\tcase SDL_JOYBUTTONDOWN:' + rest
+    focus = '\t\t\tcase SDL_WINDOWEVENT:\n'
+    assert focus in body
+    body = body.replace(focus, focus + '#ifdef __EMSCRIPTEN__\n\t\t\t\tif (engine.event.window.event == SDL_WINDOWEVENT_FOCUS_LOST) web_input_clear();\n#endif\n', 1)
+    source = source[:start] + body
+path.write_text(source, encoding='utf-8')
+Path('upstream/src/web_input_latch.h').write_text(Path('web/input-latch.h').read_text(), encoding='utf-8')
