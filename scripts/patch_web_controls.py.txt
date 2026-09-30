@@ -112,8 +112,10 @@ if new_ctrl not in event_source:
         raise SystemExit('plasma tutorial control marker not found')
     event_source = event_source.replace(old_ctrl, new_ctrl, 1)
 
-old_rocket = '_("Rockets... those would probably be a space bar or an A button.")'
-new_rocket = '_("Rockets... those would probably be the Enter key, right mouse button, or an A button.")'
+old_rocket = '''_("Rockets... those would probably be a"
+\t\t\t\t\t" space bar or an A button.")'''
+new_rocket = '''_("Rockets... those would probably be the Enter key,"
+\t\t\t\t\t" right mouse button, or an A button.")'''
 if new_rocket not in event_source:
     if old_rocket not in event_source:
         raise SystemExit('rocket tutorial control marker not found')
