@@ -8,4 +8,32 @@ if new_renderer not in renderer:
     if old_renderer not in renderer:
         raise SystemExit('renderer creation marker not found')
     renderer = renderer.replace(old_renderer, new_renderer, 1)
+logical_old = '''\tSDL_RenderSetLogicalSize(renderer, screen->w, screen->h);
+
+\tif (renderer_texture != NULL)
+'''
+logical_new = '''#ifdef __EMSCRIPTEN__
+\t/* Emscripten can resize the canvas backing store to the browser viewport
+\t * without delivering an SDL window-size event before the first frame.
+\t * Match the logical surface aspect to the actual renderer output first,
+\t * otherwise SDL inserts black side bars. */
+\t{
+\t\tint outputW = 0;
+\t\tint outputH = 0;
+\t\tif ((SDL_GetRendererOutputSize(renderer, &outputW, &outputH) == 0)
+\t\t\t\t&& (outputW > 0) && (outputH > 0)
+\t\t\t\t&& ((outputW != screen->w) || (outputH != screen->h)))
+\t\t{
+\t\t\tscreen_adjustDimensions(outputW, outputH);
+\t\t}
+\t}
+#endif
+\tSDL_RenderSetLogicalSize(renderer, screen->w, screen->h);
+
+\tif (renderer_texture != NULL)
+'''
+if logical_new not in renderer:
+    if logical_old not in renderer:
+        raise SystemExit('renderer logical-size marker not found')
+    renderer = renderer.replace(logical_old, logical_new, 1)
 renderer_path.write_text(renderer, encoding='utf-8')
